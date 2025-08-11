@@ -1,0 +1,442 @@
+to autoplay
+  while [year <= 5][
+    
+    ;;if ticks = 0 [plot-pen-down]
+    
+    ;;market, exchange  and crop production
+    if month = "December" [
+      market-explo 
+      
+      let blist shuffle (list "residue" "grain" "fertilizer" "manure" "small ruminant" "cattle" "donkey" "money")
+      let i 0
+      foreach blist [
+        biomtransfer-explo item i blist
+        set i i + 1
+      ]
+      full-update-explo 
+      ;;apply fertilizer manure and mulch
+      investfarm
+      ;;stats of inputs before sowing
+      cropstats-sow
+      ;sow 
+      ;;grow and produce 
+      grow [0]
+      ;;stats outputs at harvest (combined with inputs)
+      cropstats-harvest
+    ]
+    
+    ;;harvest (only in May, see code)
+    harvest-explo "player 1" 
+    harvest-explo "player 2" 
+    harvest-explo "player 3" 
+    harvest-explo "player 4" 
+    full-update-explo
+
+    ;;free grazing is included in livsim (in nextmonth)
+    
+    if month = "May" [
+      
+      feedfamily-explo "player 1"
+      feedfamily-explo "player 2"
+      feedfamily-explo "player 3"
+      feedfamily-explo "player 4"
+      
+      let animlist shuffle (list "cattle" "donkey" "small ruminants")
+      directfeed-explo "player 1" item 0 animlist
+      directfeed-explo "player 1" item 1 animlist
+      directfeed-explo "player 1" item 2 animlist
+      directfeed-explo "player 2" item 0 animlist
+      directfeed-explo "player 2" item 1 animlist
+      directfeed-explo "player 2" item 2 animlist
+      
+      directfeed-explo "player 3" item 0 animlist
+      directfeed-explo "player 3" item 1 animlist
+      directfeed-explo "player 3" item 2 animlist
+      directfeed-explo "player 4" item 0 animlist
+      directfeed-explo "player 4" item 1 animlist
+      directfeed-explo "player 4" item 2 animlist
+      
+      ;;market and biomass transfert
+      
+    ]
+    full-update-explo
+    
+    
+    if month = "June" [
+      ;;buy and sell
+      market-explo 
+      
+      ;;exchange resources
+      let blist shuffle (list "residue" "grain" "fertilizer" "manure" "small ruminant" "cattle" "donkey" "money")
+      let i 0
+      foreach blist [
+        biomtransfer-explo item i blist
+        set i i + 1
+      ]
+      full-update-explo
+      
+      ;;feed houehold
+      feedfamily-explo "player 1"
+      feedfamily-explo "player 2"
+      feedfamily-explo "player 3"
+      feedfamily-explo "player 4"
+      
+      ;;each player feed its livestock with feed stocked
+      let animlist shuffle (list "cattle" "donkey" "small ruminants")
+      directfeed-explo "player 1" item 0 animlist
+      directfeed-explo "player 1" item 1 animlist
+      directfeed-explo "player 1" item 2 animlist
+      directfeed-explo "player 2" item 0 animlist
+      directfeed-explo "player 2" item 1 animlist
+      directfeed-explo "player 2" item 2 animlist
+      
+      directfeed-explo "player 3" item 0 animlist
+      directfeed-explo "player 3" item 1 animlist
+      directfeed-explo "player 3" item 2 animlist
+      directfeed-explo "player 4" item 0 animlist
+      directfeed-explo "player 4" item 1 animlist
+      directfeed-explo "player 4" item 2 animlist
+      
+    ]
+    full-update-explo
+    
+    ;set buy_how_much 0
+    ;set sell_how_much 0
+    ;set biomass_sent_amount 0
+    ;set biomass_in_amount 0
+    
+    nextmonth
+  ]
+end
+
+to create-robots
+  set idplayer (list "player 1" "player 2" "player 3" "player 4")
+  let oldlist2 oldlist
+  while [(count joueurs) <= 4] [
+    create-joueurs 1 [
+      let dummy ""
+      ifelse member? "player 4" oldlist2[][set idplay "player 4" set dummy "4"]
+      ifelse member? "player 3" oldlist2[][set idplay "player 3" set dummy "3"]
+      ifelse member? "player 2" oldlist2[][set idplay "player 2" set dummy "2"]
+      ifelse member? "player 1" oldlist2[][set idplay "player 1" set dummy "1"]
+      ;set idplay item nj idplayer
+      set hidden? true
+      set pseudo (word "Smart " dummy)
+      set plot1_crop "maize"
+      set plot2_crop "maize"
+      set plot3_crop "maize"
+      set plot4_crop "maize"
+      set plot5_crop "maize"
+      set plot6_crop "maize"
+      set plot7_crop "maize"
+      
+      set plot1_fertilizer 0
+      set plot2_fertilizer 0
+      set plot3_fertilizer 0
+      set plot4_fertilizer 0
+      set plot5_fertilizer 0
+      set plot6_fertilizer 0
+      set plot7_fertilizer 0
+      
+      set plot1_manure 0
+      set plot2_manure 0
+      set plot3_manure 0
+      set plot4_manure 0
+      set plot5_manure 0
+      set plot6_manure 0
+      set plot7_manure 0
+      
+      set plot1_residue 0
+      set plot2_residue 0
+      set plot3_residue 0
+      set plot4_residue 0
+      set plot5_residue 0
+      set plot6_residue 0
+      set plot7_residue 0      
+      set residue_harvest 0
+      set send_biomass "residue"
+      set send_to "player 1"
+      set send_how_much 0
+      set buy_what "residue" set who_buy "player 1" set amount_buy 0
+      set sell_what "residue" set who_sell "player 1" set amount_sell 0
+      set biom_weight "skinny"
+      set open_field? true
+      set message_who "player 1"
+      set amount_feed 0
+      set feed "residue"
+      set livestock "cattle"
+      set diet "fed"
+      move-to patch-at 0 0
+      ;set playerlist fput item nj idplayer playerlist
+      ;set playerlist fput pseudo playerlist
+    ]
+    set nj nj + 1
+    set oldlist2 sort [idplay] of joueurs
+  ]
+  ; set oldpseudo hubnet-clients-list
+  ;show [(list idplay pseudo)] of joueurs
+  ask joueurs with [idplay = 0][die] 
+  set oldlist sort [idplay] of joueurs
+end
+
+
+;to execute-command-explo [command ]
+;  if command = "transfer_biomass" [biomtransfer]
+;  if command = "Market" [market]
+;  if command = "feed family" [feedfamily idplay livupdate idplay]
+;  if command = "feed livestock" [directfeed]
+;  if command = "harvest residue" [harvest]
+;  if command = "send message" [message]
+;  if command = "apply resources" [investfarm]
+;  if member? command ["transfer_biomass" "Market" "feed family" "send message"
+;    "feed livestock" "harvest residue" "apply resources"] = false [
+;    receive-message
+;  ]
+;end
+
+to harvest-explo [id]
+  let idplays id
+  ;let rharv item 0 [residue_harvest] of joueurs with [idplay = id];;residue requested to be harvested through hubnet
+  ;;presid is the amount of residue harvested, see interface
+  let farmii item 0 [farm] of farmers with [player = idplays]
+  if month = "May" [
+    liens farmii
+    ;;residue harvested and left on field
+    ask farmers with [player = idplays][
+      let tresid count out-link-neighbors with [typo = "residue" and shape = "star" and hidden? = false and recolt != 1];actual amount of residue produced/on field
+      let harcapa (floor (family_size / 2)) + ncow + ndonkey;harvest capacity, 2 members = 1 resid, 1 cow/donkey = 1 unit of resid
+                                                            ;;possibility to harvest multiple times until the harvest capacity is reached
+      
+      let rharv (one-of (range 0 (harcapa + 1) 1))
+      
+      if alharv < harcapa [
+        if tresid > harcapa [set tresid harcapa]
+        if rharv > tresid [set rharv tresid]
+        
+        ;if the player already harvested once through hubnet, update the total harvested
+        if (count out-link-neighbors with [typo = "residue" and shape = "star" and hidden? = true and recolt = 1]) > 0 [
+          ;check, cannot harvest more than the harvest capacity, considering what has already being harvested
+          ;only useful in hubnet
+          if rharv > harcapa - count out-link-neighbors with [typo = "residue" and
+            shape = "star" and hidden? = true and recolt = 1][
+            set rharv harcapa - count out-link-neighbors with [typo = "residue" and
+              shape = "star" and hidden? = true and recolt = 1]
+          ]
+        ]
+        
+        ;;harvest residue according to the max capacity (labor) and the amount of residue produced
+        if rharv <= tresid[
+          ask n-of rharv out-link-neighbors with [typo = "residue" and shape = "star" and hidden? = false and recolt != 1] [
+            set hidden? true 
+            set mulch? 0 
+            set recolt 1
+        ]]
+        
+        set alharv alharv + rharv;; update the total residue harvested
+      ]
+      
+      ask out-link-neighbors with [typo = "grain" and shape = "cylinder"][set hidden? true]
+      
+      ask out-link-neighbors with [typo = "residue" and shape = "star" and hidden? = false] [
+        set mulch? false;;these residue can be turned into mulch if not grazed before new season
+      ]
+      
+      ;;update grain and residue info in farms
+      set graine count out-link-neighbors with [typo = "grain" and shape = "cylinder"]
+      set resid count out-link-neighbors with [typo = "residue" and hidden? = true]
+      set ngrain graine ;- 1; remove the ficitve one white plot
+      set nresidue resid ;- 1; remove the ficitve one white plot
+      set nresiduep count out-link-neighbors with [typo = "residue" and hidden? = false and shape = "star"];;residue on field
+      
+      ;;other farms access residue left on field
+      if player = "player 1" [set accessresid open_field1?]
+      if player = "player 2" [set accessresid open_field2?]
+      if player = "player 3" [set accessresid open_field3?]
+      if player = "player 4" [set accessresid open_field4?]
+      if any? joueurs with [idplay = idplays][
+        set accessresid item 0 [open_field?] of joueurs with [idplay = idplays]];;player has priority on game master
+      ask out-link-neighbors with [typo = "residue" and shape = "star" and hidden? = false][
+        if accessresid = true [set foreignaccess "yes"]
+      ]
+    ]
+    ask turtles with [typo = "residue" and shape = "star" and hidden? = false] [set open "yes"]
+    ask joueurs with [idplay = idplays][
+      ;hubnet-send pseudo "residue_harvest" 0
+    ]
+  ]
+  ;[user-message "You cannot harvest, it is only possible in May"]
+  ;if month = "May" and canharvest <= 4 [user-message "Feed your family with the grain harvested before next step"]
+end
+
+to feedfamily-explo [gamer]
+  ;;3 units of grain = 1 person per year. so 1 pieces of grains in physical game.
+  let nfeed 0
+  let ration (1 / 3) * item 0[count out-link-neighbors with [typo = "grain" and [pcolor] of patch-here != white]] of farmers with [player = gamer]; * 2
+  ifelse (item 0 [feedfam] of farmers with [player = gamer]) = 0 [
+    set nfeed item 0 [family_size] of farmers with [player = gamer]]
+  [set nfeed item 0 [food_unsecure] of farmers with [player = gamer]]
+  
+  let foodreq ration - nfeed
+  ask farmers with [player = gamer][
+    ask out-link-neighbors with [shape = "cylinder"][set hidden? true]
+    ifelse foodreq < 0 [
+      set food_unsecure ceiling (abs foodreq) 
+      set ngrain 0
+      ask out-link-neighbors with [typo = "grain" and [pcolor] of patch-here != white][die]
+    ]
+    [
+      set food_unsecure 0 
+      set ngrain floor (ngrain - 3 * nfeed)
+      ask n-of ceiling (3 * nfeed) out-link-neighbors with [typo = "grain" and [pcolor] of patch-here != white][die]
+    ]
+    set feedfam 1
+  ]
+end
+
+
+to grazeresidue-explo [gamer animal]
+  let farmlab item 0 [label] of farmers with [player =  gamer]
+  let farmpos item 0 [pos] of farmers with [player =  gamer]
+  let cow turtles with [shape = animal and canmove = "yes" and farm = farmlab]
+  ;;2 grazing movements max per hungry animal. so grazeresidue will be repeated twice in livsim
+  ask cow with [grazed != "yes"][
+
+    if any? patches with [pcolor = rgb 0 255 0 and
+      count turtles-here with [shape = "star"and open = "yes" and (farm = farmlab or foreignaccess = "yes") and mulch? != true] >= 1 and
+      count turtles-here with [shape = "star"and open = "yes" and (farm = farmlab or foreignaccess = "yes") and mulch? != true] >=
+      (count turtles-here with [(shape = "cow" or shape = "sheep" or shape = "wolf") and grazed != "yes"]) * 2][
+      move-to one-of patches with [pcolor = rgb 0 255 0 and
+        count turtles-here with [shape = "star"and open = "yes" and (farm = farmlab or foreignaccess = "yes") and mulch? != true] >= 1 and
+        count turtles-here with [shape = "star"and open = "yes" and (farm = farmlab or foreignaccess = "yes") and mulch? != true] >=
+        (count turtles-here with [(shape = "cow" or shape = "sheep" or shape = "wolf") and grazed != "yes"]) * 2];max 2 animal on a residue
+    ]
+  ]
+
+  ;;eating residue
+  ask cow with [grazed != "yes"][
+    ifelse animal = "cow" [
+      if any? turtles-here with[shape = "star" and (farm = farmlab or foreignaccess = "yes") and hidden? = false and mulch? != true] [
+        let en count turtles-here with[shape = "star" and (farm = farmlab or foreignaccess = "yes") and hidden? = false and mulch? != true]
+        ask turtles-here with[shape = "star" and (farm = farmlab or foreignaccess = "yes") and hidden? = false and mulch? != true] [
+          die
+        ]
+        set energy energy + en
+        set hunger 0
+        if energy >= 4 * 3 [set grazed "yes"]
+      ]
+    ]
+    [
+      if any? turtles-here with[shape = "star" and (farm = farmlab or foreignaccess = "yes") and hidden? = false and mulch? != true] [
+        let en count turtles-here with[shape = "star" and (farm = farmlab or foreignaccess = "yes") and hidden? = false and mulch? != true]
+        ask turtles-here with[shape = "star" and (farm = farmlab or foreignaccess = "yes") and hidden? = false and mulch? != true] [
+          die
+        ]
+        set energy energy + en
+        set hunger 0
+        if animal = "wolf" and energy >= 3 * 3 [set grazed "yes"]
+        if animal = "sheep" and energy >= 2 * 3 [set grazed "yes"]
+      ]
+    ]
+  ]
+
+end
+
+
+to directfeed-explo [id animals]
+  let psd item 0[pseudo] of joueurs with [idplay = id]
+  let idplays id
+  let fodder item 0[feed] of joueurs with [idplay = id]
+  let animal animals
+  let foragecowdon 0;actual number of animal to be fed
+  let shp "" 
+  let form "star" 
+  let vis true 
+  let fict 0; vis=visibility ; fict = fictive agent (for conc)
+  let nanim 0
+  let enreq 2;;energy required by animals.default 2 for small ruminants
+  let enreq-anim 0
+  let forme "sheep"
+  
+  ask farmers with [player = idplays][
+    set nanim count out-link-neighbors with [shape = form and hidden? = vis and mulch? != true] - fict;;amount_feed;number of animal to be fed
+  ]
+  let fac 0.5; factor conversion for feed. 4 residues for cow 3 for donkey 2 for small ruminants in physical game. so time 3 here.
+  let eff 1; 2 for conc 1 for residue
+  
+  if animal = "cattle" [set fac (1 / (4 * 3)) set enreq-anim (4 * 3) set forme "cow"]
+  if animal = "donkey" [set fac (1 / (3 * 3)) set enreq-anim (3 * 3) set forme "wolf"]
+  if fodder = "concentrate" [set eff 2 set form "lightning" set vis false set fict 1]
+  
+  let farmlab item 0 [farm] of farmers with [player = idplays]
+  ask farmers with [player = idplays][
+    set forage count out-link-neighbors with [shape = form and hidden? = vis and mulch? != true and color != blue and color != magenta] - fict
+    set forage forage * fac * eff
+    if animal = "cattle"[
+      set foragecowdon count out-link-neighbors with [shape = "cow" and canmove = "yes" and grazed != "yes"]
+      set enreq sum [4 * 3 - energy] of out-link-neighbors with [shape = "cow" and canmove = "yes" and grazed != "yes"]
+      set shp "cow"
+    ]
+    if animal = "donkey"[
+      set foragecowdon count out-link-neighbors with [shape = "wolf" and canmove = "yes" and grazed != "yes"]
+      set enreq sum [3 * 3 - energy] of out-link-neighbors with [shape = "cow" and canmove = "yes" and grazed != "yes"]
+      set shp "wolf"
+    ]
+    if animal = "small ruminant"[
+      set foragecowdon count out-link-neighbors with [shape = "sheep" and canmove = "yes" and grazed != "yes"]
+      set enreq sum [2 * 3 - energy] of out-link-neighbors with [shape = "cow" and canmove = "yes" and grazed != "yes"]
+      set shp "sheep"
+    ]
+    ;;1 residue feed one cow/donkey for one season
+    ;;1 residue feed 1 small ruminants for one season
+    ;if nanim < foragecowdon [set foragecowdon nanim]
+    if foragecowdon > 0 [
+      while [forage > 0 and count out-link-neighbors with [shape = forme and canmove = "yes" and grazed != "yes"] > 0] [
+        ask one-of out-link-neighbors with [shape = forme and canmove = "yes" and grazed != "yes"][
+          let nreq enreq-anim - energy
+          ifelse forage > nreq [
+            set energy enreq-anim
+            set grazed "yes" 
+            set hunger 0
+            set forage forage - nreq
+          ][
+            set energy energy + forage 
+            if energy >= enreq-anim [
+              set grazed "yes"
+              set hunger 0
+            ]
+            set forage 0
+          ]
+        ]
+        
+        
+      ]
+    ]
+  ]
+  ;set livfeed? true
+end
+
+to update-explo [gamer]
+  let stck 0 let stck2 0 let rskc 0 let rsks 0 let rskd 0
+  let cfed 0 let srfed 0 let dfed 0 let residharvcap 0
+  let idplays gamer
+  ask farmers with [player = idplays][
+    set stck count out-link-neighbors with [typo = "residue" and hidden? = true and shape = "star"]
+    set stck2 count out-link-neighbors with [typo = "residue" and hidden? = false and shape = "star" and mulch? != true]
+    set rskc count out-link-neighbors with [shape = "cow" and canmove = "yes" and hunger > 0]
+    set rsks count out-link-neighbors with [shape = "sheep" and canmove = "yes" and hunger > 0]
+    set rskd count out-link-neighbors with [shape = "wolf" and canmove = "yes" and hunger > 0]
+    set cfed count out-link-neighbors with [shape = "cow" and canmove != 0 and grazed = "yes"]
+    set srfed count out-link-neighbors with [shape = "sheep" and canmove != 0 and grazed = "yes"]
+    set dfed count out-link-neighbors with [shape = "wolf" and canmove != 0 and grazed = "yes"]
+    set residharvcap (floor (family_size / 2)) + ncow + ndonkey
+  ]
+end
+
+to full-update-explo
+  ;;update
+  ask joueurs [
+    livupdate idplay
+    update-explo idplay
+  ]
+  
+end

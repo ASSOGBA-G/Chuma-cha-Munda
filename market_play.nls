@@ -1,0 +1,680 @@
+to market-play
+  let buy_whats buy_what
+  let sell_whats sell_what
+  let qty_buy amount_buy
+  let qty_sell amount_sell
+  ;;in case both buy and sell, order is random. same probability.
+  ifelse random 101 >= 50 [
+    marche-buy-play buy_whats qty_buy
+    marche-sell-play sell_whats qty_sell
+  ][
+    marche-sell-play sell_whats qty_sell
+    marche-buy-play buy_whats qty_buy
+  ]
+  let idplays idplay
+  livupdate idplays
+  ask joueurs with [idplay = idplays][set amount_buy 0]
+  ask joueurs with [idplay = idplays][set amount_sell 0]
+  hubnet-send pseudo "amount_buy" 0
+  hubnet-send pseudo "amount_sell" 0
+  update-labour
+end
+
+to marche-sell-play [biomass s_how_much]
+  let psd pseudo
+  let idplays idplay
+  let arret 0
+  let bonus1 0; poultry.bonus symbolize prices variations
+  let bonus8c 0; concentrate
+  let bonus10 0;for srum in dec, apr, june
+  let bonus10m 0; for manure in apr, june
+  let bonus20 0;for donkey in dec, apr, june
+  let bonus30 0; for cows in dec, apr, june
+  let bonus10gr 0; grain only
+  let sell_whats biomass
+  let sell_how_muchs s_how_much
+  ;let biom_weights biom_weight
+  ;;prices adjustments according to period of year
+  ifelse sell_whats != "grain" or sell_whats != "residue" or sell_whats != "conc" [
+    if month = "December" or month = "June" or month = "June" [
+      set bonus10 0 set bonus20 0 set bonus30 0 set bonus1 0]
+  ]
+  [
+    if month = "June" or month = "June" [
+      set bonus10gr 0 set bonus8c 0 set bonus10m 0]
+  ]
+  
+  let etat ""
+  let qsell 0
+  if sell_whats = "concentrate" [set sell_whats "conc"]
+  if sell_whats = "small ruminant" [set sell_whats "srum"]
+  if sell_whats = "tractor" [set sell_whats "tricycle"]
+  if sell_whats = "water pump" [set sell_whats "water_pump"]
+  
+  if  member? sell_whats ["cart" "poultry" "labor" "tricycle" "water_pump" "field"] = false [
+    ask farmers with [player = idplays][
+      set qsell count out-link-neighbors with [typo = sell_whats and [pcolor] of patch-here != white and hunger < 1]]
+  ]
+  
+  if sell_whats = "cart" [
+    set qsell item 0[ncart] of farmers with [player = idplays]
+  ]
+  
+  if sell_whats = "tricycle"[
+    set qsell item 0[ntricycle] of farmers with [player = idplays]
+  ]
+  
+  if sell_whats = "water_pump"[
+    set qsell item 0[nwaterpump] of farmers with [player = idplays]
+  ]
+  
+  if sell_whats = "labour" [set qsell labour - ncow - ndonkey]
+  
+  if sell_whats = "field"[
+    set qsell item 0[nplot] of farmers with [player = idplays]
+  ]
+  
+  if sell_whats = "poultry" [set qsell item 0[npoultry] of farmers with [player = idplays]]
+  
+  if arret = 0 [
+    if sell_whats = "fertilizer" [set qsell item 0[nfertilizer] of farmers with [player = idplays]]
+    if sell_whats = "conc" [set qsell item 0[nconc] of farmers with [player = idplays]]
+    if sell_whats = "grain" [set qsell item 0[ngrain] of farmers with [player = idplays]]
+    if sell_whats = "manure" [set qsell item 0[nmanure] of farmers with [player = idplays]]
+    ;show qsell
+    ;show (range 0 (qsell + 1) 1)
+    ;set sell_how_muchs one-of (range 0 (qsell + 1) 1)
+    
+    if sell_how_muchs > qsell [
+      hubnet-send psd "warning" "Sender: you cannot sell more than you have. Please try again" 
+      set arret 1]
+    
+    if arret = 0 [
+      ifelse sell_what != "field"[
+        ifelse sell_whats != "labour"[
+          ifelse member? sell_whats ["cart" "tricycle" "poultry" "fertilizer""conc" "manure"] = false [
+            ask farmers with [player = idplays][
+              
+              if sell_whats = "grain" [
+                let gr out-link-neighbors with [typo = sell_whats and hunger = 0 and size != 0 and [pcolor] of patch-here != white]
+              ]
+              
+              ifelse sell_whats != "grain" and sell_whats != "residue"[
+                ask n-of sell_how_muchs out-link-neighbors with [typo = sell_whats and hunger = 0 and size != 0 and [pcolor] of patch-here != white][
+                  set etat state
+                  die
+                ]
+                
+              ][
+                if sell_whats = "grain" [
+                  let maxgr count out-link-neighbors with [typo = sell_whats and hunger = 0 and size != 0 and [pcolor] of patch-here != white]
+                  if sell_how_muchs >  maxgr [set sell_how_muchs maxgr]
+                  ask n-of sell_how_muchs out-link-neighbors with [typo = sell_whats and hunger = 0 and size != 0 and [pcolor] of patch-here != white][
+                    set etat state
+                    die
+                  ]
+                ]
+                if sell_whats = "residue" [
+                  let maxrsd count out-link-neighbors with [typo = sell_whats and hunger = 0 and size != 0 and [pcolor] of patch-here != white]
+                  if sell_how_muchs >  maxrsd [set sell_how_muchs maxrsd]
+                  ask n-of sell_how_muchs out-link-neighbors with [typo = sell_whats and hunger = 0 and size != 0 and [pcolor] of patch-here != white][
+                    set etat state
+                    die
+                  ]
+                ]
+                
+                
+              ]
+              if sell_whats = "cattle" [
+                set onfarm_inc onfarm_inc + (10 + bonus30) * sell_how_muchs; * sell_how_much
+              ]
+              if sell_whats = "srum" [
+                set onfarm_inc onfarm_inc + (3 + bonus10) * sell_how_muchs
+              ]
+              if sell_whats = "donkey" [
+                set onfarm_inc onfarm_inc + (5 + bonus20) * sell_how_muchs
+              ]
+              if sell_whats = "residue" [set onfarm_inc onfarm_inc + (0.5 + bonus10m) * sell_how_muchs]
+              if sell_whats = "grain" [set onfarm_inc onfarm_inc + (1 + bonus10gr) * sell_how_muchs]
+            ]
+          ][
+            ask farmers with [player = idplays][
+              ifelse member? sell_whats ["cart" "tricycle" "water_pump"] [
+                if sell_whats = "cart" [set onfarm_inc onfarm_inc + 10 * sell_how_muchs]
+                if sell_whats = "tricycle" [set onfarm_inc onfarm_inc + 30 * sell_how_muchs]
+                if sell_whats = "water_pump" [set onfarm_inc onfarm_inc + 10 * sell_how_muchs]
+              ][
+                if sell_whats = "poultry"[set onfarm_inc onfarm_inc + (1 + bonus10m) * (sell_how_muchs)];1 or 2 unit(s) of money = 1 poultry
+                if sell_whats = "fertilizer" [set onfarm_inc onfarm_inc + 1 * sell_how_muchs]
+                if sell_whats = "conc" [set onfarm_inc onfarm_inc + (2 + bonus8c) * sell_how_muchs]
+                if sell_whats = "manure" [set onfarm_inc onfarm_inc + (1) * sell_how_muchs]
+              ]
+              let sz 0
+              if sell_whats != "poultry" [set sz 1]
+              ask n-of sell_how_muchs out-link-neighbors with [typo = sell_whats and hunger = 0 and size != sz and [pcolor] of patch-here != white][
+                die
+              ]
+            ]
+          ]
+        ][
+          set off_farm_labour off_farm_labour + sell_how_muchs
+        ]
+      ][
+        let ferme item 0[farm] of farmers with [player = idplays]
+        let myplot patches with [cultiv = "yes" ]
+        set myplot myplot with [(substring plabel 0 1) = ferme]
+        
+        foreach (range 0 sell_how_muchs)[
+          ask one-of myplot [
+            let lab plabel
+            ask patches with [plabel = lab][
+              set samefield plabel;; to be used to buy the field and conserve spatial pattern
+              set plabel "" 
+              set cultiv ""
+            ]
+          ]
+          set myplot patches with [cultiv = "yes" ]
+          set myplot myplot with [(substring plabel 0 1) = ferme]
+        ]
+      ]
+      
+      let tbuysell []
+      set tbuysell fput "sell" tbuysell
+      set tbuysell fput month tbuysell
+      set tbuysell fput year tbuysell
+      set tbuysell fput sim tbuysell
+      set tbuysell lput idplays tbuysell 
+      set tbuysell lput sell_whats tbuysell
+      set tbuysell lput sell_how_muchs tbuysell
+      
+      ifelse (file-exists? (word "outputs/" "resmarket_" sim ".csv")) = false[
+        ifelse length tbuysell = 0 [
+          set buysell (list headmarket tbuysell) 
+        ]
+        [set buysell sentence buysell (list tbuysell)]
+      ][
+        if length buysell = 0 [
+          file-open (word "outputs/" "resmarket_" sim ".csv")
+          set buysell csv:from-file (word "outputs/" "resmarket_" sim ".csv")
+          file-close
+        ]
+        set buysell sentence buysell (list tbuysell)
+      ]
+      ;set buysell (list buysell "sell" idplays sell_whats sell_how_muchs biom_weights);; used as output to track selling. see exportresults.nls
+      ;file-open (word "resmarket.txt")
+      ;file-print buysell
+      ;file-close
+      ;set buysell []
+    ]
+  ]
+end
+
+to marche-buy-play [biomass b_how_much]
+  let psd pseudo
+  let idplays idplay
+  let arret 0
+  let bonus1 0; poultry.bonus symbolize prices variations
+  let bonus8c 0; concentrate
+  let bonus10 0;for srum in dec, apr, june
+  let bonus10m 0; for residue in apr, june
+  let bonus20 0;for donkey in dec, apr, june
+  let bonus30 0; for cows in dec, apr, june
+  let bonus10gr 0; grain only
+  let buy_whats biomass
+  let buy_how_muchs b_how_much
+  ;;prices adjustments according to period of year
+  ifelse buy_whats != "grain" or buy_whats != "residue" or buy_whats != "conc" [
+    if month = "December" or month = "June" or month = "June" [
+      set bonus10 0 set bonus20 0 set bonus30 0 set bonus1 0]
+  ]
+  [
+    if month = "June" or month = "June" [
+      set bonus10gr 0 set bonus8c 0 set bonus10m 0]
+  ]
+  
+  let etat ""
+  let qbuy 0
+  ask patches with [plabel = ""][set plabel "99"]
+  if buy_whats = "concentrate" [set buy_whats "conc"]
+  if buy_whats = "small ruminant" [set buy_whats "srum"]
+  if buy_whats = "tractor" [set buy_whats "tricycle"]
+  if buy_whats = "water pump" [set buy_whats "water_pump"]
+  
+  ifelse (member? buy_whats ["cart" "tricycle" "water_pump" "field" "forest-field" "shrubland-field"]) = false [
+    ask farmers with [player = idplays][
+      let inc onfarm_inc + offfarm_inc
+      if buy_whats = "cattle" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (10 + bonus30)) + 1) 1)
+        set qbuy (10 + bonus30) * buy_how_muchs
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" (word "You do not have enough money for " buy_how_muchs " cattle.") 
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "srum" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (3 + bonus10)) + 1) 1)
+        set qbuy (3 + bonus10) * buy_how_muchs
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" (word "You do not have enough money for " buy_how_muchs " small ruminants.")
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "donkey" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (5 + bonus20)) + 1) 1)
+        set qbuy (5 + bonus20) * buy_how_muchs
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" (word "You do not have enough money for " buy_how_muchs " donkeys.") 
+          set arret 1
+        ] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "residue"[
+        ;set buy_how_muchs one-of (range 0 ((inc / (0.5 + bonus10m)) + 1) 1)
+        set qbuy (0.5 + bonus10m) * buy_how_muchs
+        ;show inc show qbuy
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" (word "You do not have enough money to buy " buy_how_muchs " residues.")
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "grain" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (1 + bonus10gr)) + 1) 1)
+        set qbuy (1 + bonus10gr) * buy_how_muchs;;assume always buy sorghum
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" (word "You do not have enough money for " buy_how_muchs " grains.")
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "conc"[
+        ;set buy_how_muchs one-of (range 0 ((inc / (2 + bonus10)) + 1) 1)
+        set qbuy (2 + bonus8c) * buy_how_muchs
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" "You do not have enough money. Please try again" 
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "manure" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (1)) + 1) 1)
+        set qbuy (1) * buy_how_muchs
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" (word "You do not have enough money for " buy_how_muchs " manure.")
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      
+      if buy_whats = "poultry" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (1 + bonus10m)) + 1) 1)
+        set qbuy (1 + bonus10m) * (buy_how_muchs)
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" "You do not have enough money. Please try again" 
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy set npoultry npoultry - buy_how_muchs]
+        ]
+      ]
+      
+      if buy_whats = "fertilizer" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (1)) + 1) 1)
+        set qbuy 1 * buy_how_muchs
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" (word "You do not have enough money to buy " buy_how_muchs " amount of fertilizer.")
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "transhumance" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (25 + bonus10)) + 1) 1)
+        let nbov item 0 [ncow] of farmers with [player = idplays]
+        ifelse nbov > buy_how_muchs [set qbuy 25 * buy_how_muchs]
+        [set qbuy 3 * nbov];;player does not pay more by mistake
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" "You do not have enough money to start transhumance." 
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+        ]
+      ]
+      
+      if buy_whats = "labour" [
+        ;set buy_how_muchs one-of (range 0 ((inc / (1)) + 1) 1)
+        set qbuy 5 * buy_how_muchs
+        ifelse inc < qbuy [
+          hubnet-send psd "warning" "You do not have enough money to buy additional labor."
+          set arret 1] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][set onfarm_inc onfarm_inc - qbuy]
+          set hired_labour hired_labour + buy_how_muchs
+        ]
+      ]
+      
+      if arret = 0 [
+        if buy_whats != "labour"[
+          ifelse buy_whats != "transhumance"[
+            ask one-of turtles with [typo = buy_whats][
+              hatch buy_how_muchs[
+                set farm item 0[farm] of farmers with [player = idplays]
+                set pos item 0[pos] of farmers with [player = idplays]
+                set label farm
+                
+                if buy_whats = "residue" [set shape "star" set hidden? true]
+                if buy_whats = "conc" [set shape "lightning"]
+                if buy_whats != "poultry" and buy_whats != "conc"
+                
+                [set canmove "yes"
+                  let myplot patches with [cultiv = "yes"]
+                  move-to one-of myplot with [(read-from-string (substring plabel 0 1)) = (item 0[pos] of farmers with [player = idplays]) and pcolor != white]
+                  if any? myplot with [(read-from-string (substring plabel 0 1)) = (item 0[pos] of farmers with [player = idplays]) and
+                    count turtles-here < 2 and pcolor != white]
+                  [move-to one-of myplot with [(read-from-string (substring plabel 0 1)) = (item 0[pos] of farmers with [player = idplays]) and
+                    count turtles-here < 2 and pcolor != white]]
+                  
+                  if any? myplot with [(read-from-string (substring plabel 0 1)) = (item 0[pos] of farmers with [player = idplays]) and
+                    count turtles-here = 0 and pcolor != white]
+                  [move-to one-of myplot with [(read-from-string (substring plabel 0 1)) = (item 0[pos] of farmers with [player = idplays]) and
+                    count turtles-here = 0 and pcolor != white and cultiv = "yes"]]
+                  
+                ]
+                
+                if buy_whats = "cattle" or buy_whats = "srum" or buy_whats = "donkey"[
+                  set state "skinny" set hunger 0
+                  ifelse month = "June" [set grazed "yes" set energy 4][set grazed "" set energy 0]
+                  set farm item 0[farm] of farmers with [player = idplays]
+                  set pos item 0[pos] of farmers with [player = idplays]
+                  set label farm
+                  set canmove "yes"
+                  move-to one-of patches with [pcolor = rgb 0 100 0]
+                ]
+                
+                if buy_whats = "cattle" [set color 85 set size 1.25]
+                if buy_whats = "srum" [set color 9.9 set size .75]
+                if buy_whats = "donkey" [set color 5 set size 1.1]
+                
+                if buy_whats = "fertilizer" [set color 96 set size .75 set heading one-of (range 0 360 45) set canmove 0];;used in sow
+                if buy_whats = "manure" [set color 36 set size .75 set heading one-of (range 0 360 45) set canmove 0]
+                if buy_whats = "grain" [set color red set size .75 set shape "cylinder" set hidden? true]
+                liens item 0 [farm] of farmers with [player = idplays]
+              ]
+            ]
+          ]
+          [
+            ask farmers with [player = idplays][
+              ask n-of buy_how_muchs out-link-neighbors with [shape = "cow" and canmove = "yes"] [
+                set hidden? true set canmove "no"
+              ]
+            ]
+          ]
+        ]
+        let tbuysell []
+        set tbuysell fput "buy" tbuysell
+        set tbuysell fput month tbuysell
+        set tbuysell fput year tbuysell
+        set tbuysell fput sim tbuysell
+        set tbuysell lput idplays tbuysell 
+        set tbuysell lput buy_whats tbuysell
+        set tbuysell lput buy_how_muchs tbuysell
+        
+        ifelse (file-exists? (word "outputs/" "resmarket_" sim ".csv")) = false[
+          ifelse length tbuysell = 0 [
+            set buysell (list headmarket tbuysell) 
+          ]
+          [set buysell sentence buysell (list tbuysell)]
+        ][
+          if length buysell = 0 [
+            file-open (word "outputs/" "resmarket_" sim ".csv")
+            set buysell csv:from-file (word "outputs/" "resmarket_" sim ".csv")
+            file-close
+          ]
+          set buysell sentence buysell (list tbuysell)
+        ]
+        ;set buysell (list buysell "buy" idplays buy_whats buy_how_muchs) ;; used as output to track buying
+        ;file-open (word "resmarket.txt")
+        ;file-print buysell
+        ;file-close
+        ;set buysell []
+      ]
+      
+    ]
+  ][
+    ask farmers with [player = idplays][
+      let inc onfarm_inc + offfarm_inc
+      if buy_whats = "cart" [set qbuy 10 * buy_how_muchs]
+      if buy_whats = "tricycle" [set qbuy 30 * buy_how_muchs]
+      if buy_whats = "water_pump" [set qbuy 10 * buy_how_muchs]
+      if member? buy_whats ["field" "forest-field" "shrubland-field"] [set qbuy land_price * buy_how_muchs]
+      
+      ifelse inc < qbuy [
+        hubnet-send psd "warning" "You do not have enough money. Please try again" 
+        set arret 1
+      ] [
+        
+        if member? buy_whats ["field" "forest-field" "shrubland-field"] = false [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][
+            set onfarm_inc onfarm_inc - qbuy
+          ]
+        ]
+        
+        if buy_whats = "field" [
+          if count patches with [pcolor = rgb 0 255 0 and cultiv != "yes"] < buy_how_muchs / 3 [
+            hubnet-send psd "warning" "There is not enough fields to buy" 
+            set arret 1 
+          ]
+        ]
+        
+        if buy_whats = "forest-field" [
+          if open_forest? = false [
+            hubnet-send psd "warning" "You cannot expand into forest" 
+            set arret 1 
+          ]
+          
+          if count patches with [pcolor = 54] < buy_how_muchs / 3 [
+            hubnet-send psd "warning" "You cannot expand into shrubland" 
+            set arret 1 
+          ]
+        ]
+        
+        if buy_whats = "shrubland-field" [
+          if open_shrub? = false [
+            hubnet-send psd "warning" "There is not enough shrubland plots to buy" 
+            set arret 1 
+          ]
+          
+          if count patches with [pcolor = 64] < buy_how_muchs / 3 [
+            hubnet-send psd "warning" "There is not enough shrubland plots to buy" 
+            set arret 1 
+          ]
+        ]
+        
+      ]
+      
+      if arret = 0 [
+        
+        if member? buy_whats ["field" "forest-field" "shrubland-field"] [
+          ifelse qbuy > onfarm_inc[
+            set offfarm_inc inc - qbuy
+            set onfarm_inc 0
+          ][
+            set onfarm_inc onfarm_inc - qbuy
+          ]
+        ]
+        
+        
+        if buy_whats = "tricycle"[
+          ;;tractor
+          ask one-of out-link-neighbors with [typo = buy_whats][
+            hatch buy_how_muchs[
+              set farm item 0 [farm] of farmers with [player = idplays]
+              set tractor_owner item 0 [farm] of farmers with [player = idplays]
+              liens item 0 [farm] of farmers with [player = idplays]
+              let targ patches with [pcolor = 26]
+              move-to one-of targ with-min [count turtles-here]
+              set label item 0 [farm] of farmers with [player = idplays]
+              set label-color red
+              set color random 140
+              ;set hidden? true
+              hubnet-send psd "warning" (word "Congratulations you now have " buy_how_muchs " new tractors!")
+            ]
+          ]
+        ]
+        
+        if buy_whats = "water_pump"[
+          ;;water pump
+          ask one-of patches [
+            sprout buy_how_muchs [
+              set typo "water_pump"
+              set shape "wheel"
+              set farm item 0 [farm] of farmers with [player = idplays]
+              set tractor_owner item 0 [farm] of farmers with [player = idplays]
+              liens item 0 [farm] of farmers with [player = idplays]
+              let targ patches with [pcolor = 26]
+              move-to one-of targ with-min [count turtles-here]
+              set label item 0 [farm] of farmers with [player = idplays]
+              set label-color red
+              ;set hidden? true
+              hubnet-send psd "warning" (word "Congratulations you now have " buy_how_muchs " new irrigation equipments!")
+            ]
+          ]
+        ]
+        
+        if buy_whats = "field" [
+          let ferme farm
+          let myplot patches with [cultiv = "yes"]
+          set myplot myplot with [(substring plabel 0 1) = ferme]
+          
+          let startpos 0 ;;number of field
+          
+          ifelse count myplot = 0 [
+            set startpos 0
+          ][
+           set startpos max [read-from-string (substring plabel 2 3)] of myplot 
+          ]
+          
+          let i 1
+          foreach (range 0 buy_how_muchs) [
+            
+            ask one-of patches with [pcolor = rgb 0 255 0 and cultiv != "yes"][
+              let field samefield
+              ask patches with [samefield = field][
+                set plabel (word ferme "-" (startpos + i))
+                set cultiv "yes"
+                set samefield plabel
+              ]
+            ]
+            set i i + 1 
+          ]
+          
+        ]
+        
+        if buy_whats = "forest-field" [
+          ask joueurs with [idplay = idplays][
+            expand-field-forest buy_how_muchs
+          ]
+        ]
+        
+        if buy_whats = "shrubland-field" [
+          ask joueurs with [idplay = idplays][
+            expand-field-shrubland buy_how_muchs
+          ]
+        ]
+        
+        
+        let tbuysell []
+        set tbuysell fput "buy" tbuysell
+        set tbuysell fput month tbuysell
+        set tbuysell fput year tbuysell
+        set tbuysell fput sim tbuysell
+        set tbuysell lput idplays tbuysell 
+        set tbuysell lput buy_whats tbuysell
+        set tbuysell lput buy_how_muchs tbuysell
+        
+        ifelse (file-exists? (word "outputs/" "resmarket_" sim ".csv")) = false[
+          ifelse length tbuysell = 0 [
+            set buysell (list headmarket tbuysell) 
+          ]
+          [set buysell sentence buysell (list tbuysell)]
+        ][
+          if length buysell = 0 [
+            file-open (word "outputs/" "resmarket_" sim ".csv")
+            set buysell csv:from-file (word "outputs/" "resmarket_" sim ".csv")
+            file-close
+          ]
+          set buysell sentence buysell (list tbuysell)
+        ]
+        
+        
+      ]
+      
+    ]
+  ]
+  ask patches with [plabel = "99"][set plabel ""]
+end
+
+to update-labour
+  ask farmers [
+    set labour family_size - off_farm_labour + hired_labour + labour_received - labour_sent + ncow * 5 + ndonkey * 3 + ntricycle * 10
+  ]
+  ask joueurs [
+    let idplays idplay
+    let checklab checklabor
+    let peoplelab item 0 [labour] of farmers with [player = idplays] - 5 * item 0 [ncow] of farmers with [player = idplays] - 3 * item 0 [ndonkey] of farmers with [player = idplays] -
+    10 * item 0 [ntricycle] of farmers with [player = idplays]
+    
+    if checklab = "yes" [
+      hubnet-send pseudo "warning" "You do not have enough labor for the cropping system."
+      ;show (word idplay " do not have enough labor for the cropping system.")
+    ] 
+    
+    
+    if peoplelab <= 0 [
+      hubnet-send pseudo "warning" "Household members absent. Farming is impossible. You can buy labor and proceed."
+      ;show (word idplay " do not have enough labor for the cropping system.")
+    ] 
+  ]
+end

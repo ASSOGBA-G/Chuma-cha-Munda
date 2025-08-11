@@ -1,0 +1,242 @@
+to biomtransfer
+  let idplays idplay
+  let faim 0
+  if diet != "fed" [
+    if member? send_biomass ["cattle" "small ruminant" "donkey"][
+      set faim 1
+    ]
+  ]
+  liens "1" liens "2" liens "3" liens "4"
+  let arret 0
+  
+  let biomsown 0;biomass own by sender
+  let oldbiomass send_biomass
+  if send_biomass = "concentrate" [set send_biomass "conc"]
+  if send_biomass = "small ruminant" [set send_biomass "srum"]
+  if send_biomass = "water pump" [set send_biomass "water_pump"]
+  
+  let send_biomasse send_biomass
+  
+  if member? send_biomasse ["tractor" "rent tractor to"][set send_biomasse "tricycle"]
+  
+  ifelse send_biomasse != "labour"[
+    ifelse send_biomasse != "money"[
+      ask farmers with [player = idplays][
+        ifelse member? send_biomasse ["conc" "poultry" "manure" "fertilizer" "tricycle"] = false[
+          set biomsown count out-link-neighbors with [typo = send_biomasse and [pcolor] of patch-here != white and hunger = faim]
+        ][
+          set biomsown count out-link-neighbors with [typo = send_biomasse] - 1
+        ]
+        
+        if send_biomasse = "residue" [
+          set biomsown count out-link-neighbors with [typo = send_biomasse and hidden? = true]
+        ]; remove the fictive one
+        
+        if send_biomasse = "water_pump" [
+          set biomsown count out-link-neighbors with [typo = send_biomasse]
+        ]; remove the fictive one
+        
+      ]
+    ][
+      set biomsown item 0[onfarm_inc] of farmers with [player = idplays ] + item 0[offfarm_inc] of farmers with [player = idplays ]
+    ]
+  ][
+    ask farmers with [player = idplays][
+      set biomsown labour - ncow * 5 - ndonkey * 3 - ntricycle * 10
+    ]
+  ]
+  
+  if send_how_much > biomsown [
+    hubnet-send pseudo "warning" "Sender: you cannot send more resources than you own. Please try again" 
+    set arret 1
+  ]
+  
+  if arret = 0 [
+    ;;biomass exchange
+    biomflow
+    
+    ask biom_owner [die]
+    liens "1" liens "2" liens "3" liens "4"
+    livupdate idplays
+    livupdate send_to
+    set flux fput send_how_much flux
+    set flux fput send_biomasse flux
+    set flux fput send_to flux
+    set flux fput idplays flux
+    set flux fput month flux
+    set flux fput year flux
+    set flux fput sim flux
+    ;set flux (list flux idplays send_to send_biomasse send_how_much)
+    file-open (word "resflux.txt")
+    ;set flux fput month flux set flux fput year flux
+    file-print flux
+    file-close
+    set flux []
+    hubnet-send pseudo "send_how_much" 0
+    set send_biomass oldbiomass
+  ]
+  ask joueurs with [idplay = idplays][set send_how_much 0]
+  update-labour
+end
+
+
+to biomflow
+  let idplays idplay
+  let faim 0
+  if diet != "fed" [set faim 1]
+  let biom_out send_how_much
+  let recpt send_to
+  let rent 0
+  
+  if send_biomass = "concentrate" [set send_biomass "conc"]
+  if send_biomass = "small ruminant" [set send_biomass "srum"]
+  if send_biomass = "water pump" [set send_biomass "water_pump"]
+  ;show send_biomass
+  if member? send_biomass ["tractor" "rent tractor to"][
+    if send_biomass = "rent tractor to" [
+      set rent "yes" 
+    ]
+    set send_biomass "tricycle"
+  ]
+  
+  let send_biomasse send_biomass
+  
+  ask farmers with [player = idplays][
+    ifelse send_biomasse != "labour"[
+      ifelse recpt != "off farm activities"[
+        ifelse send_biomasse != "money"[
+          ifelse member? send_biomasse ["conc" "poultry" "manure" "fertilizer" "tricycle" "water_pump"] = false [
+            ask n-of biom_out out-link-neighbors with [typo = send_biomasse and [pcolor] of patch-here != white and hunger = faim][
+              set farm item 0[farm] of farmers with [player = recpt]
+            ]
+          ][
+            ask n-of biom_out out-link-neighbors with [typo = send_biomasse and [pcolor] of patch-here != white][
+              set farm item 0[farm] of farmers with [player = recpt]
+              
+              if member? send_biomasse ["manure" "fertilizer"][
+                let myplot patches with [cultiv = "yes"]
+                set myplot myplot with [(substring plabel 0 1) = item 0 [farm] of farmers with [player = recpt]]
+                if any? myplot[
+                  move-to one-of myplot
+                ]
+              ]
+              
+              if send_biomasse = "tricycle" [
+                set farm item 0[farm] of farmers with [player = recpt]
+                if rent != "yes"[
+                  set tractor_owner item 0[farm] of farmers with [player = recpt];;used to update ntricycle for both owner and the player renting the tractor.
+                ]
+              ]
+            ]
+            ;;update manure as its its update only after tick 0 
+            if ticks = 0 [
+              ask farmers with [player = recpt][
+                if send_biomasse = "manure" [set nmanure nmanure + biom_out]
+              ]
+              if send_biomasse = "manure" [set nmanure nmanure - biom_out]]
+            
+          ]
+        ][
+          ifelse  (onfarm_inc - biom_out) >= 0[
+            set onfarm_inc onfarm_inc - biom_out]
+          [set offfarm_inc offfarm_inc - biom_out + onfarm_inc set onfarm_inc 0]
+          ask farmers with [player = recpt][set onfarm_inc onfarm_inc + biom_out]
+        ]
+      ][
+        hubnet-send pseudo "warning" "You can only send this resource to other players." 
+        
+      ]
+    ][
+      ifelse recpt != "off farm activities"[
+        ask farmers with [player = recpt] [set labour_received labour_received + biom_out]
+        set labour_sent labour_sent + biom_out
+      ][
+        set off_farm_labour off_farm_labour + biom_out
+      ]
+    ]
+  ]
+  
+end
+
+to tractor-location
+  let idplays idplay
+  let faim 0
+  if diet != "fed" [set faim 1]
+  let send_biomasse send_biomass
+  let biom_out send_how_much
+  let recpt send_to
+  
+  ask farmers with [player = idplays][
+     ask n-of biom_out out-link-neighbors with [typo = send_biomasse and [pcolor] of patch-here != white][
+      set farm item 0[farm] of farmers with [player = recpt]
+    ]
+    
+  ]
+  
+end
+to receive-message
+  let idplays idplay
+  ;ask joueurs with [idplays = hubnet-message-source][]
+  if hubnet-message-tag = "residue_harvest" [set residue_harvest hubnet-message]
+  if hubnet-message-tag = "irr_residue_harvest" [set irr_residue_harvest hubnet-message]
+  if hubnet-message-tag = "send_biomass" [set send_biomass hubnet-message]
+  if hubnet-message-tag = "send_to" [set send_to hubnet-message]
+  if hubnet-message-tag = "send_how_much" [set send_how_much hubnet-message]
+  if hubnet-message-tag = "buy_what" [set buy_what hubnet-message]
+  if hubnet-message-tag = "who_buy" [set who_buy hubnet-message]
+  if hubnet-message-tag = "amount_buy" [set amount_buy hubnet-message]
+  if hubnet-message-tag = "sell_what" [set sell_what hubnet-message]
+  if hubnet-message-tag = "amount_sell" [set amount_sell hubnet-message]
+  if hubnet-message-tag = "biom_weight" [set biom_weight hubnet-message]
+  if hubnet-message-tag = "message text" [set message_text hubnet-message]
+  if hubnet-message-tag = "message who" [set message_who hubnet-message]
+  if hubnet-message-tag = "open_field?" [
+    set open_field? hubnet-message
+    ask farmers with [player = idplays][
+      set accessresid hubnet-message;;player has priority on game master
+      ask out-link-neighbors with [typo = "residue" and shape = "star"][
+        if accessresid = true [set foreignaccess "yes"]
+      ]
+    ]
+  ]
+  if hubnet-message-tag = "residue_harvest" [set residue_harvest hubnet-message]
+  if hubnet-message-tag = "livestock" [set livestock hubnet-message]
+  if hubnet-message-tag = "feed" [set feed hubnet-message]
+  if hubnet-message-tag = "amount_feed" [set amount_feed hubnet-message]
+  if hubnet-message-tag = "diet" [set diet hubnet-message]
+  if hubnet-message-tag = "apply_n_fertilizer" [set apply_n_fertilizer hubnet-message]
+  if hubnet-message-tag = "apply_n_manure" [set apply_n_manure hubnet-message]
+  
+  if hubnet-message-tag = "plot1_crop" [set plot1_crop hubnet-message]
+  if hubnet-message-tag = "plot2_crop" [set plot2_crop hubnet-message]
+  if hubnet-message-tag = "plot3_crop" [set plot3_crop hubnet-message]
+  if hubnet-message-tag = "plot4_crop" [set plot4_crop hubnet-message]
+  if hubnet-message-tag = "plot5_crop" [set plot5_crop hubnet-message]
+  if hubnet-message-tag = "plot6_crop" [set plot6_crop hubnet-message]
+  if hubnet-message-tag = "plot7_crop" [set plot7_crop hubnet-message]
+  
+  if hubnet-message-tag = "plot1_fertilizer" [set plot1_fertilizer hubnet-message]
+  if hubnet-message-tag = "plot2_fertilizer" [set plot2_fertilizer hubnet-message]
+  if hubnet-message-tag = "plot3_fertilizer" [set plot3_fertilizer hubnet-message]
+  if hubnet-message-tag = "plot4_fertilizer" [set plot4_fertilizer hubnet-message]
+  if hubnet-message-tag = "plot5_fertilizer" [set plot5_fertilizer hubnet-message]
+  if hubnet-message-tag = "plot6_fertilizer" [set plot6_fertilizer hubnet-message]
+  if hubnet-message-tag = "plot7_fertilizer" [set plot7_fertilizer hubnet-message]  
+  
+  if hubnet-message-tag = "plot1_manure" [set plot1_manure hubnet-message]
+  if hubnet-message-tag = "plot2_manure" [set plot2_manure hubnet-message]
+  if hubnet-message-tag = "plot3_manure" [set plot3_manure hubnet-message]
+  if hubnet-message-tag = "plot4_manure" [set plot4_manure hubnet-message]  
+  if hubnet-message-tag = "plot5_manure" [set plot5_manure hubnet-message]
+  if hubnet-message-tag = "plot6_manure" [set plot6_manure hubnet-message]
+  if hubnet-message-tag = "plot7_manure" [set plot7_manure hubnet-message]   
+  
+  if hubnet-message-tag = "plot1_residue" [set plot1_residue hubnet-message]
+  if hubnet-message-tag = "plot2_residue" [set plot2_residue hubnet-message]
+  if hubnet-message-tag = "plot3_residue" [set plot3_residue hubnet-message]
+  if hubnet-message-tag = "plot4_residue" [set plot4_residue hubnet-message]
+  if hubnet-message-tag = "plot5_residue" [set plot5_residue hubnet-message]
+  if hubnet-message-tag = "plot6_residue" [set plot6_residue hubnet-message]
+  if hubnet-message-tag = "plot7_residue" [set plot7_residue hubnet-message]  
+end
+

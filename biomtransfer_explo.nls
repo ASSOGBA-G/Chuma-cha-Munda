@@ -1,0 +1,115 @@
+to biomtransfer-explo [biomass]
+  ask joueurs [
+    set send_biomass biomass
+    set send_to one-of (list "player 1" "player 2" "player 3" "player 4")
+    set diet "fed"
+    let idplays idplay
+    let faim 0
+    if diet != "fed" [set faim 1]
+    liens "1" liens "2" liens "3" liens "4"
+    let arret 0
+    
+    let biomsown 0;biomass own by sender
+    
+    if send_biomass = "concentrate" [set send_biomass "conc"]
+    if send_biomass = "small ruminant" [set send_biomass "srum"]
+    let send_biomasse send_biomass
+    
+    
+    
+    ifelse send_biomasse != "money"[
+      ask farmers with [player = idplays][
+        ifelse send_biomasse != "conc" and send_biomasse != "poultry" and send_biomasse != "manure"[
+          set biomsown count out-link-neighbors with [typo = send_biomasse and [pcolor] of patch-here != white and hunger = faim]]
+        [set biomsown count out-link-neighbors with [typo = send_biomasse]]
+        
+        if send_biomasse = "residue" [
+          set biomsown count out-link-neighbors with [typo = send_biomasse and hidden? = true]]; remove the fictive one
+      ]
+    ][
+      set biomsown item 0[onfarm_inc + offfarm_inc] of farmers with [player = idplays ]
+      if biomsown < 0 [set biomsown 0]
+    ]
+    
+    set send_how_much one-of (range 0 (biomsown + 1) 1)
+    
+    if send_how_much > biomsown [
+      ;;hubnet-send pseudo "warning" "Sender: you cannot send more biomass than you own. Please try again" 
+      set arret 1]
+    
+    if arret = 0 [
+      ;;biomass exchange
+      biomflow-explo
+      
+      ask biom_owner [die]
+      liens "1" liens "2" liens "3" liens "4"
+      livupdate idplays
+      livupdate send_to
+      let tflux []
+      set tflux fput send_how_much tflux
+      set tflux fput send_biomasse tflux
+      set tflux fput send_to tflux
+      set tflux fput idplays tflux
+      set tflux fput month tflux
+      set tflux fput year tflux
+      set tflux fput sim tflux
+      
+      ifelse (file-exists? (word "outputs/" "resflux_" sim ".csv")) = false[
+        ifelse length flux = 0 [
+          set flux (list headflux tflux) 
+        ]
+        [set flux sentence flux (list tflux)]
+      ][
+        if length flux = 0 [
+          file-open (word "outputs/" "resflux_" sim ".csv")
+          set flux csv:from-file (word "outputs/" "resflux_" sim ".csv")
+          file-close
+        ]
+        set flux sentence flux (list tflux)
+      ]
+      ;set flux (list flux idplays send_to send_biomasse send_how_much)
+      ;file-open (word "resflux.txt")
+      ;set flux fput month flux set flux fput year flux
+      ;file-print flux
+      ;file-close
+      ;set flux []
+      ;;hubnet-send pseudo "send_how_much" 0
+    ]
+    set send_how_much 0
+  ]
+end
+
+
+to biomflow-explo
+  let idplays idplay
+  let faim 0
+  if diet != "fed" [set faim 1]
+  let send_biomasse send_biomass
+  let biom_out send_how_much
+  let recpt send_to
+  ask farmers with [player = idplays][
+    ifelse send_biomasse != "money"[
+      ifelse send_biomasse != "conc" and send_biomasse != "poultry"  and send_biomasse != "manure"[
+        ask n-of biom_out out-link-neighbors with [typo = send_biomasse and [pcolor] of patch-here != white and hunger = faim][
+          set farm item 0[farm] of farmers with [player = recpt]
+      ]][
+        ask n-of biom_out out-link-neighbors with [typo = send_biomasse][
+          set farm item 0[farm] of farmers with [player = recpt]
+        ]
+        ;;update manure as its its update only after tick 0 
+        if ticks = 0 [
+          ask farmers with [player = recpt][
+            if send_biomasse = "manure" [set nmanure nmanure + biom_out]
+          ]
+          if send_biomasse = "manure" [set nmanure nmanure - biom_out]]
+        
+      ]
+    ][
+      ifelse  (onfarm_inc - biom_out) >= 0[
+        set onfarm_inc onfarm_inc - biom_out]
+      [set offfarm_inc offfarm_inc - biom_out + onfarm_inc set onfarm_inc 0]
+      ask farmers with [player = recpt][set onfarm_inc onfarm_inc + biom_out]
+    ]
+  ]
+  
+end

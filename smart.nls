@@ -1,0 +1,1133 @@
+to smartplay
+  ;;governement decisions. see common.nls
+  govmanagement
+  
+  ;; build strategy
+  smartstrategy
+  
+  ;;coomon resources management 
+  common-vote
+  
+  ;;update resources
+  full-update-explo
+  update-labour
+  
+  ;;grow crops, include harvest of irrigated crops.
+  ;;PM: update croplist and add irrigated crops 
+  ;;PM: apply cropping system from already defined strategy
+  if member? month ["December" "May"] [
+    
+    ;;in case irrigated farm, define crop residues to be harvested
+    if month = "May" [
+      ask joueurs [
+        let idplays idplay
+        set irr_residue_harvest 500;;item 0 [labour] of farmers with [player = idplays] ;;assumed all residue can be harvested. see harvest and harvest-irr in main code
+        set irr_residue_harvest one-of (range 0 (irr_residue_harvest + 1) 1)
+      ]
+    ]
+    grow [0];;harvest in irrigated season is embedded in grow, see main code
+  ]
+  
+  ;;harvest (only in May, see code)
+  ask joueurs [
+    let idplays idplay
+    set residue_harvest 500;;item 0 [labour] of farmers with [player = idplays] 
+    set residue_harvest one-of (range 0 (residue_harvest + 1) 1)
+    harvest
+  ]
+  
+  ;;update resources
+  full-update-explo
+  update-labour
+  
+  ;;free grazing is included in livsim (in nextmonth)
+  
+  if month = "May" [
+    
+    feedfamily-explo "player 1"
+    feedfamily-explo "player 2"
+    feedfamily-explo "player 3"
+    feedfamily-explo "player 4"
+    
+    let animlist shuffle (list "cattle" "donkey" "small ruminants")
+    directfeed-play "player 1" item 0 animlist
+    directfeed-play "player 1" item 1 animlist
+    directfeed-play "player 1" item 2 animlist
+    directfeed-play "player 2" item 0 animlist
+    directfeed-play "player 2" item 1 animlist
+    directfeed-play "player 2" item 2 animlist
+    
+    directfeed-play "player 3" item 0 animlist
+    directfeed-play "player 3" item 1 animlist
+    directfeed-play "player 3" item 2 animlist
+    directfeed-play "player 4" item 0 animlist
+    directfeed-play "player 4" item 1 animlist
+    directfeed-play "player 4" item 2 animlist
+    
+    ;;market and biomass transfert
+    
+  ]
+  full-update-explo
+  update-labour
+  
+  
+  if month = "June" [
+    
+    ;;feed houehold
+    feedfamily-explo "player 1"
+    feedfamily-explo "player 2"
+    feedfamily-explo "player 3"
+    feedfamily-explo "player 4"
+    
+    ;;each player feed its livestock with feed stocked
+    let animlist shuffle (list "cattle" "donkey" "small ruminants")
+    directfeed-play "player 1" item 0 animlist
+    directfeed-play "player 1" item 1 animlist
+    directfeed-play "player 1" item 2 animlist
+    directfeed-play "player 2" item 0 animlist
+    directfeed-play "player 2" item 1 animlist
+    directfeed-play "player 2" item 2 animlist
+    
+    directfeed-play "player 3" item 0 animlist
+    directfeed-play "player 3" item 1 animlist
+    directfeed-play "player 3" item 2 animlist
+    directfeed-play "player 4" item 0 animlist
+    directfeed-play "player 4" item 1 animlist
+    directfeed-play "player 4" item 2 animlist
+    
+  ]
+  full-update-explo
+  update-labour
+  
+  ;set buy_how_much 0
+  ;set sell_how_much 0
+  ;set biomass_sent_amount 0
+  ;set biomass_in_amount 0
+  
+  nextmonth
+end
+
+
+
+to smartstrategy
+  ;;build and apply strategies 
+  apply-strategy "player 1"
+  apply-strategy "player 2"
+  apply-strategy "player 3"
+  apply-strategy "player 4"
+  
+end
+
+to apply-strategy [gamer]
+  if member? month  ["December" "May"][
+    applycropstrategy gamer
+    track-cropsy
+  ]
+  
+  ;;biomass transfer / market
+  
+  let sfluxes shuffle ["transfer" "market-buy" "market-sell"]
+  
+  execute-fluxes gamer item 0 sfluxes
+  full-update-explo
+  update-labour
+  execute-fluxes gamer item 1 sfluxes
+  full-update-explo
+  update-labour
+  execute-fluxes gamer item 2 sfluxes
+  full-update-explo
+  update-labour
+  
+end
+
+to buildcropsy [gamer]
+  let players gamer
+  let ferme item 0 [farm] of farmers with [player = gamer]
+  let nfield item 0 [nplot] of farmers with [player = gamer]
+  let cropsy (list random 101)
+  set cropsy lput (100 - item 0 cropsy) cropsy
+  let force item 0 [labour] of farmers with [player = gamer]
+  
+  let myplot patches with [cultiv = "yes"]
+  
+  set myplot myplot with [(substring plabel 0 1) = ferme]
+  
+  ;;initialize crops
+  ask myplot [
+    set crop1 0
+    set crop2 0 
+  ]
+  
+  ;;crop assignment to fields according to labour available
+  let tmpcrop1 0
+  let tmpcrop2 0
+  let i 0
+  while [i < nfield][
+    ;;rainy season
+    if month = "December"[
+      if any? myplot with [sow? != true][
+        ask one-of myplot with [sow? != true] [
+          ;;random choice of crops
+          set crop1 one-of (range 1 5 1)
+          set crop2 one-of (range 1 5 1)
+          set sow? true
+          ;;update labor
+          ifelse (crop1 + crop2) mod 2 = 0[
+            set force force - 1
+          ][
+            set force force - 2 
+          ]
+          
+          let lab plabel
+          set tmpcrop1 crop1
+          set tmpcrop2 crop2
+          
+          ifelse force >= 0 [
+            ask myplot with [plabel = lab][
+              set crop1 tmpcrop1
+              set crop2 tmpcrop2
+              set sow? true
+            ] 
+          ][
+            ;;no production on plot if no more labour available
+            ask myplot with [plabel = lab][
+              set crop1 0
+              set crop2 0
+              set sow? true
+            ]
+          ]
+        ]
+      ]
+    ]
+    
+    ;;irrigated season
+    if month = "May"[
+      if any? myplot with [sow? != true][
+        ask one-of myplot with [sow? != true] [
+          ;;random choice of crops
+          set crop1_irr one-of (range 1 5 1)
+          set crop2_irr one-of (range 1 5 1)
+          set sow? true
+          ;;update labor
+          ifelse (crop1 + crop2) mod 2 = 0[
+            set force force - 1
+          ][
+            set force force - 2 
+          ]
+          
+          let lab plabel
+          set tmpcrop1 crop1_irr
+          set tmpcrop2 crop2_irr
+          
+          ifelse force >= 0 [
+            ask myplot with [plabel = lab][
+              set crop1_irr tmpcrop1
+              set crop2_irr tmpcrop2
+              set sow? true
+            ] 
+          ][
+            ;;no production on plot if no more labour available
+            ask myplot with [plabel = lab][
+              set crop1_irr 0
+              set crop2_irr 0
+              set sow? true
+            ]
+          ]
+        ]
+      ]
+    ]
+    set i i + 1
+  ]
+  
+  
+end
+
+to applycropstrategy [gamer]
+  
+  ;;choose strategy
+  if month = "December" and auto-play?[
+    choose-strategy gamer
+  ]
+  
+  ;;cropping system application of new strategy
+  ask farmers with [player = gamer and newstrategy? = true] [
+    ;;assign crops to fields
+    buildcropsy gamer
+    
+    ifelse month = "May" [
+      ;;input distribution across fields + 
+      ;;irrigation cropping system
+      input-distrib gamer 
+      let strategy list-irr gamer
+      
+      set newstrategy sentence strategy newstrategy
+      set mystrategy newstrategy
+      ;set allstrategy replace-item strategyposition allstrategy newstrategy 
+      ;set allstrategy sentence (list newstrategy) (sentence allstrategy)
+    ][
+      ;;input distribution across fields
+      input-distrib gamer 
+      set newstrategy create-list gamer
+      set mystrategy newstrategy
+      ;set allstrategy sentence (list newstrategy) (sentence allstrategy)
+    ]
+  ]
+  
+  ;;cropping system application, old strategy
+  ask farmers with [player = gamer and newstrategy? = false][
+    oldcropsy gamer
+  ]
+  
+end
+
+to oldcropsy [gamer]
+  let players gamer
+  let ferme item 0 [farm] of farmers with [player = gamer]
+  let nfield item 0 [nplot] of farmers with [player = gamer]
+  let cropsy (list random 101)
+  set cropsy lput (100 - item 0 cropsy) cropsy
+  let force item 0 [labour] of farmers with [player = gamer]
+  
+  let myplot patches with [cultiv = "yes"]
+  
+  set myplot myplot with [(substring plabel 0 1) = ferme]
+  
+  ;;initialize crops
+  ask myplot [
+    set crop1 0
+    set crop2 0 
+  ]
+  
+  ;;crop assignment to fields according to labour available
+  let tmpcrop1 0
+  let tmpcrop2 0
+  
+  let mycroplist []
+  let mymanure []
+  let myresidue []
+  let myfertilizer []
+  if month = "May" [
+    set mycroplist item 4 mystrategy
+    set mymanure item 5 mystrategy
+    set myresidue item 6 mystrategy
+    set myfertilizer item 7 mystrategy 
+  ]
+  
+  if month = "December" [
+    set mycroplist item 0 mystrategy
+    set mymanure item 1 mystrategy
+    set myresidue item 2 mystrategy
+    set myfertilizer item 3 mystrategy    
+  ]
+  
+  ;; crop distribution according to strategy and labour
+  let i 0
+  
+  while [i < nfield][
+    if any? myplot with [sow? != true] [
+      ;;rainy season
+      ask one-of myplot with [sow? != true] [
+        ;;random choice of crops
+        set crop1 item 1 mycroplist
+        set crop2 item 2 mycroplist
+        set sow? true
+        ;;update labor
+        ifelse (crop1 + crop2) mod 2 = 0[
+          set force force - 1
+        ][
+          set force force - 2 
+        ]
+        
+        let lab plabel
+        set tmpcrop1 crop1
+        set tmpcrop2 crop2
+        
+        ifelse force >= 0 [
+          ask myplot with [plabel = lab][
+            set crop1 tmpcrop1
+            set crop2 tmpcrop2
+            set sow? true
+          ] 
+        ][
+          ;;no production on plot if no more labour available
+          ask myplot with [plabel = lab][
+            set crop1 0
+            set crop2 0
+            set sow? true
+          ]
+        ]
+      ]
+    ]
+    set i i + 1
+  ]
+  
+  ;;manure, residue and fertilizer application per field according to strategy
+  set i 1
+  
+  let mplot item 0 [nplot] of farmers with [player = gamer]
+  
+  let nman item 0[nmanure] of farmers with [player = gamer]
+  let nfert item 0[nfertilizer] of farmers with [player = gamer]
+  let nresid item 0[nresidue] of farmers with [player = gamer]
+  
+  let manapp 0
+  let fertapp 0
+  let resapp 0
+  let plot-index 0
+  
+  while [i <= mplot][
+    ask farmers with [player = gamer] [
+      if i < length mymanure and  i < length myfertilizer and i < length myresidue [;;while applying old crop system, the number of field may vary from one round to another
+        set manapp item i mymanure
+        set fertapp item i myfertilizer
+        set resapp item i myresidue
+        
+        let realmanure count out-link-neighbors with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white]
+        if manapp > realmanure [set manapp realmanure]
+        
+        let realfertilizer count out-link-neighbors with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white]
+        if fertapp > realfertilizer [set fertapp realfertilizer]
+        
+        let realresidue count out-link-neighbors with [shape = "star" and (hidden? = true or mulch? = true) and [pcolor] of patch-here != white]
+        if resapp > realresidue [set resapp realresidue]
+        
+        set plot-index item (i - 1) [(read-from-string (substring plabel 2 3))] of myplot
+        
+        ask n-of manapp out-link-neighbors with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white][
+          move-to one-of myplot with [read-from-string (substring plabel 2 3) = plot-index]
+        ]
+        
+        ask n-of fertapp out-link-neighbors with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white][
+          move-to one-of myplot with [read-from-string (substring plabel 2 3) = plot-index]
+        ]
+        
+        ask n-of resapp out-link-neighbors with [shape = "star" and (hidden? = true or mulch? = true) and [pcolor] of patch-here != white][
+          move-to one-of myplot with [read-from-string (substring plabel 2 3) = plot-index]
+        ]
+        
+        set nman nman - manapp
+        set nfert nfert - fertapp
+        set nresid nresid - resapp
+        if nman < 0 [set nman 0]
+        if nfert < 0 [set nfert 0]
+        if nresid < 0 [set nresid 0]
+      ]
+    ]
+    
+    set i i + 1 
+  ]
+  
+  ask farmers with [player = gamer][
+    if any? out-link-neighbors with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white][
+      ask n-of nman out-link-neighbors with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white][
+        die 
+      ]
+    ]
+    
+    if any? out-link-neighbors with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white][
+      ask n-of nfert out-link-neighbors with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white][
+        die 
+      ]
+    ]
+    
+    if any? out-link-neighbors with [shape = "star" and (hidden? = true or mulch? = true) and [pcolor] of patch-here != white][
+      ask n-of nresid out-link-neighbors with [shape = "star" and (hidden? = true or mulch? = true) and [pcolor] of patch-here != white][
+        die 
+      ]
+    ]
+  ]
+  
+  
+  
+end
+
+
+
+to-report list-irr [gamer]
+  ;;new crop in irrigated seasons
+  let myplot patches with [cultiv = "yes"]
+  let ferme item 0[farm] of farmers with [player = gamer]
+  set myplot myplot with [(substring plabel 0 1) = ferme]
+  let nfield item 0 [nplot] of farmers with [player = gamer]
+  let croplist []
+  let manlist []
+  let fertlist []
+  let reslist []
+  
+  
+  let i 1
+  let plot-index 0
+  ;;cropping system
+  while [i <= nfield][
+    set plot-index item (i - 1) [(read-from-string (substring plabel 2 3))] of myplot
+    let crop-list [(list crop1_irr crop2_irr)] of one-of myplot with [(read-from-string (substring plabel 2 3)) = plot-index]
+    set croplist sentence crop-list croplist
+    
+    let res-list turtles-on myplot with [(read-from-string (substring plabel 2 3)) = i]
+    let man-list count res-list with [typo = "manure" and hidden? = false]
+    let fert-list count res-list with [typo = "fertilizer" and hidden? = false]
+    let resid-list count res-list with [shape = "star" and (hidden? = true or mulch? = true)]
+    set manlist fput man-list manlist
+    set fertlist fput fert-list fertlist
+    set reslist fput resid-list reslist
+    set i i + 1
+  ]
+  
+  if ((length croplist) / 2) < ((count patches with [member? pcolor [54 64 [0 255 0]]]) / 3)[
+    let greenplot (count patches with [member? pcolor [54 64 [0 255 0]]]) / 3
+    repeat (greenplot - ((length croplist) / 2)) [
+      set croplist sentence croplist [0 0]  
+      set manlist lput 0 manlist
+      set fertlist lput 0 fertlist
+      set reslist lput 0 reslist
+    ]
+  ]
+  report (list croplist manlist fertlist reslist)
+end
+
+to input-distrib [gamer]
+  
+  ;;manure, residue and fertilizer assignment to fields
+  let ferme item 0 [farm] of farmers with [player = gamer]
+  
+  let myplot patches with [cultiv = "yes"]
+  
+  set myplot myplot with [(substring plabel 0 1) = ferme]
+  
+  let i 1
+  
+  let mplot item 0 [nplot] of farmers with [player = gamer]
+  
+  let nman item 0[nmanure] of farmers with [player = gamer]
+  let nfert item 0[nfertilizer] of farmers with [player = gamer]
+  let nresid item 0[nresidue] of farmers with [player = gamer]
+  
+  let manapp 0
+  let fertapp 0
+  let resapp 0
+  let plot-index 0
+  
+  if any? myplot [
+    while [i <= mplot][
+      ask farmers with [player = gamer][
+        set manapp one-of (range 0 (nman + 1) 1)
+        set fertapp one-of (range 0 (nfert + 1) 1)
+        set resapp one-of (range 0 (nresid + 1) 1)
+        
+        set plot-index item (i - 1) [(read-from-string (substring plabel 2 3))] of myplot
+        
+        ask n-of manapp out-link-neighbors with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white][
+          move-to one-of myplot with [read-from-string (substring plabel 2 3) = plot-index]
+        ]
+        
+        ask n-of fertapp out-link-neighbors with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white][
+          move-to one-of myplot with [read-from-string (substring plabel 2 3) = plot-index]
+        ]
+        
+        ask n-of resapp out-link-neighbors with [shape = "star" and (hidden? = true or mulch? = true) and [pcolor] of patch-here != white][
+          move-to one-of myplot with [read-from-string (substring plabel 2 3) = plot-index]
+        ]
+        
+        set nman nman - manapp
+        set nfert nfert - fertapp
+        set nresid nresid - resapp
+      ]
+      
+      set i i + 1 
+    ]
+  ]
+  
+  ask farmers with [player = gamer] [
+    if any? out-link-neighbors with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white][
+      ask n-of nman out-link-neighbors with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white][
+        die 
+      ]
+    ]
+    
+    if any? out-link-neighbors with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white][
+      ask n-of nfert out-link-neighbors with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white][
+        die 
+      ]
+    ]
+    
+    if any? out-link-neighbors with [shape = "star" and (hidden? = true or mulch? = true) and [pcolor] of patch-here != white][
+      ask n-of nresid out-link-neighbors with [shape = "star" and (hidden? = true or mulch? = true) and [pcolor] of patch-here != white][
+        die 
+      ]
+    ]
+  ]
+  
+  
+end
+
+to track-cropsy
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;intercropping, sole cropping and manure application tracking
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+  ;;intercropping tracking
+  let trackpatch patches with [cultiv = "yes" and member? crop1 [1 2 3 4]]
+  
+  if month = "May" [
+    set trackpatch trackpatch with [plabel-color = blue]
+  ]
+  
+  if any? trackpatch with [intertrack? != "yes"][
+    ask trackpatch with [intertrack? != "yes"][
+      set intercropping "yes"
+      set intercroptype "strip";;one-of (list "tradi" "strip")
+      set intertrack lput 1 intertrack
+      if length intertrack > 3 [
+        set intertrack sublist intertrack 1 3;;last element not included in the sublist so it is added again (next line)
+        set intertrack lput 1 intertrack
+      ]
+      set intertrack? "yes"
+    ]
+  ]
+  
+  ;;sole cropping tracking
+  set trackpatch patches with [cultiv = "yes"]
+  
+  if month = "May" [
+    set trackpatch trackpatch with [plabel-color = blue]
+  ]
+  
+  if any? trackpatch with [soletrack? != "yes"][
+    ask trackpatch with [soletrack? != "yes"][
+      ifelse crop1 = crop2 [
+        set solecropping "yes" 
+        set soletrack lput crop1 soletrack
+        if length soletrack > 3 [
+          set soletrack sublist soletrack 1 3;;last element not included in the sublist so it is added again (next line)
+          set soletrack lput crop1 soletrack
+        ]
+      ][
+        set solecropping "no"
+        set soletrack lput 0 soletrack
+        if length soletrack > 3 [
+          set soletrack sublist soletrack 1 3;;last element not included in the sublist so it is added again (next line)
+          set soletrack lput 0 soletrack
+        ]
+      ]
+      set soletrack? "yes"
+    ]
+  ]
+  
+  ;;manure/residue application tracking
+  if any? trackpatch with [manuretrack? != "yes"][
+    ask trackpatch with [manuretrack? != "yes"][
+      let lab plabel
+      let track 0
+      
+      ask patches with [plabel = lab and manuretrack? != "yes"][
+        set track turtles-on patches with [plabel = lab and manuretrack? != "yes"]
+        set track count track with [typo = "manure" or mulch? = true]
+        set manuretrack lput track manuretrack 
+        if length manuretrack > 3 [
+          set manuretrack sublist manuretrack 1 3;;last element not included in the sublist so it is added again (next line)
+          set manuretrack lput track manuretrack
+        ]
+        set manuretrack? "yes"
+      ]
+    ]
+  ]
+end
+
+to-report create-list [gamer]
+  let myplot patches with [cultiv = "yes"]
+  let ferme item 0[farm] of farmers with [player = gamer]
+  set myplot myplot with [(substring plabel 0 1) = ferme]
+  let nfield item 0 [nplot] of farmers with [player = gamer]
+  let croplist []
+  let manlist []
+  let fertlist []
+  let reslist []
+  let croplist_irr []
+  let manlist_irr []
+  let fertlist_irr []
+  let reslist_irr []
+  let selllist []
+  let buylist []
+  let sendlist [];;exchanges, items sent
+  let roundbuy []
+  let roundsell []
+  let roundsend []
+  
+  
+  let i 1
+  let plot-index 0
+  ;;cropping system
+  while [i <= nfield][
+    set plot-index item (i - 1) [(read-from-string (substring plabel 2 3))] of myplot
+    let crop-list [(list crop1 crop2)] of one-of myplot with [(read-from-string (substring plabel 2 3)) = plot-index]
+    set croplist sentence crop-list croplist
+    
+    let res-list turtles-on myplot with [(read-from-string (substring plabel 2 3)) = plot-index]
+    let man-list count res-list with [typo = "manure" and hidden? = false]
+    let fert-list count res-list with [typo = "fertilizer" and hidden? = false]
+    let resid-list count res-list with [shape = "star" and (hidden? = true or mulch? = true)]
+    set manlist fput man-list manlist
+    set fertlist fput fert-list fertlist
+    set reslist fput resid-list reslist
+    set i i + 1
+  ]
+  
+  if ((length croplist) / 2) < ((count patches with [member? pcolor [54 64 [0 255 0]]]) / 3)[
+    let greenplot (count patches with [member? pcolor [54 64 [0 255 0]]]) / 3
+    repeat (greenplot - ((length croplist) / 2)) [
+      set croplist sentence croplist [0 0]  
+      set manlist lput 0 manlist
+      set fertlist lput 0 fertlist
+      set reslist lput 0 reslist
+    ]
+  ]
+  
+  ;;market
+  ;;correspondence of the list element, see order of sell/buy item in hubnet client
+  ;;[manure fertilizer grain residue cattle srum donkey labour tractor water_pump field shrubland-field forest-field]
+  ;;rent tractor and money options added to exchange list
+  let j 1
+  repeat 17 [
+    ifelse j <= 15[
+      set buylist fput (one-of (range 0 11)) buylist ;;supposed you can buy max 10 item each per round/year
+      set selllist fput (one-of (range 0 11)) selllist
+      set sendlist fput (one-of (range 0 11)) sendlist
+      
+      set roundbuy fput (one-of (list "December" "May" "June")) roundbuy
+      set roundsell fput (one-of (list "December" "May" "June")) roundsell
+      set roundsend fput (one-of (list "December" "May" "June")) roundsend
+    ][
+      set sendlist fput (one-of (range 0 11)) sendlist
+      set roundsend fput (one-of (list "December" "May" "June")) roundsend
+    ]
+    set j j + 1
+  ]
+  
+  report (list croplist manlist reslist fertlist buylist roundbuy selllist roundsell sendlist roundsend)
+end
+
+to execute-fluxes [gamer smartflux]
+  
+  let fluxlist []
+  
+  ifelse smartflux != "transfer" [
+    set fluxlist ["manure" "fertilizer" "grain" "residue" "cattle" "srum" "donkey"  "poultry" "labour" "tractor" "water_pump" "field" "shrubland-field" "forest-field" "microfinance"]
+  ][
+    set fluxlist ["manure" "fertilizer" "grain" "residue" "cattle" "srum" "donkey" "poultry" "labour" "tractor" "water_pump" "field" "shrubland-field" "forest-field" "microfinance" "rent tractor to" "money"]
+  ]
+  
+  let activpos 0
+  
+  ;; consider newly created strategy, in irrigated season the list of strategy gets longer. no prob in old strategy
+  let increment 0
+  ;let lpos item 0[strategyposition] of farmers with [player = gamer]
+  let activscore item 0 [newstrategy?] of farmers with [player = gamer]
+  if month = "December" and activscore = true [
+    set increment -4
+  ]
+  
+  if smartflux = "market-buy" [set activpos 9 + increment]
+  if smartflux = "market-sell" [set activpos 11 + increment]
+  if smartflux = "transfer" [set activpos 13 + increment]
+  
+  ask farmers with [player = gamer][
+    
+    if member? month item activpos mystrategy[
+      let i 0
+      let ii activpos - 1
+      set activestrategy item ii mystrategy;; element of exchange/market. see create-list section above.
+      let timestrategy item activpos mystrategy;; time of exchange/market of each element
+      
+      while [i < length fluxlist][
+        if item i timestrategy  = month [
+          let biom item i fluxlist;; item 8 (9th) element of each strategy is about amount of item to be send. check it!!!
+          let biomamount item i activestrategy
+          
+          if smartflux = "transfer"[
+            ask joueurs with [idplay = gamer][
+              smart-transfer biom biomamount i ii
+            ]
+            ;;update resources
+            full-update-explo
+            update-labour
+          ]
+          
+          if smartflux = "market-buy"[
+            ask joueurs with [idplay = gamer][
+              smart-marche-buy biom biomamount i ii;;update it!
+            ]
+            ;;update resources
+            full-update-explo
+            update-labour
+          ]
+          
+          if smartflux = "market-sell"[
+            ask joueurs with [idplay = gamer][
+              smart-marche-sell biom biomamount i ii
+            ]
+            
+            ;;update resources
+            full-update-explo
+            update-labour
+          ]
+          
+        ]
+        set i i + 1
+      ]
+    ]
+  ]
+  
+end
+
+
+to choose-strategy [gamer]
+  
+  ;;50% chance to choosestrategy with max score
+  ;;30% chance to choose any of top 100 strategy with score > 0
+  ;;20% chance to choose a new strategy
+  ;;to avoid being stuck in a local optimum
+  ;;start with minimum 100 strategies
+  
+  let p random 100
+  
+  ask turtles with [player = gamer][
+    if p <= 90 and length allstrategy >= 100 [
+      set mystrategy item 0 allstrategy
+      set strategyposition 0
+      set newstrategy? false
+      set activevote_field item 0 commonvote_field
+      set activevote_shrub item 0 commonvote_shrub
+      set activevote_forest item 0 commonvote_forest
+      
+    ]
+    
+    if p > 90 and p <= 95 and length allstrategy >= 100 [
+      let positive filter [ i -> i > 0 ] strategyscore
+      if length positive > 0 [
+        set positive one-of positive
+        let i position positive strategyscore
+        set mystrategy item i allstrategy
+        set strategyposition i
+        set newstrategy? false
+        set activevote_field item i commonvote_field
+        set activevote_shrub item i commonvote_shrub
+        set activevote_forest item i commonvote_forest
+      ]
+    ]
+    
+    let sc -1;;initialized negative for the case there is n strategy applied i.e. 1st year 1st round.
+    if length strategyscore > 0 [
+      set sc item 0 strategyscore;;if highest score is negative, then it will try a new strategy
+    ]
+    if p > 95 or length allstrategy < 100 or sc < 0 [
+      
+      let l length strategyscore
+      ;;set l l - 1
+      ifelse l > 0 [
+        ;set mystrategy item l allstrategy
+        set strategyposition l
+      ][
+        set strategyposition 0 
+      ]
+      set strategyscore lput 0.0001 strategyscore;;only for new untested strategy
+      
+      ;;voting for commons
+      let vote_field one-of [true false]
+      set commonvote_field lput vote_field commonvote_field
+      set activevote_field vote_field
+      
+      let vote_shrub one-of [true false]
+      set commonvote_shrub lput vote_shrub commonvote_shrub
+      set activevote_shrub vote_shrub
+      
+      let vote_forest one-of [true false]
+      set commonvote_forest lput vote_forest commonvote_forest
+      set activevote_forest vote_forest
+      
+      set newstrategy? true
+    ]
+    
+    ;;in case all conditions above failed
+    if newstrategy? and length strategyscore = 100 [
+      ;set mystrategy item 0 allstrategy
+      ;set strategyposition 0
+      ;set strategyscore sublist strategyscore 0 99
+      set newstrategy? true
+      set activevote_field item 0 commonvote_field
+      set activevote_shrub item 0 commonvote_shrub
+      set activevote_forest item 0 commonvote_forest
+    ]
+  ]
+  
+end
+
+to evaluate-strategy [gamer]
+  ;;evaluate the player strategy
+  ;;used in nextmonth procedure, main code, at the end of each year
+  
+  ask turtles with [player =  gamer][
+    
+    if newstrategy? [
+      set allstrategy sentence (list mystrategy) (sentence allstrategy)
+    ]
+    
+    let score 0
+    ifelse player != "government" [
+      set score (ncow * 10 + ndonkey * 5 + nsrum * 3 + ntricycle * 30 + ngrain * (3) + nresidue * (.5)) +
+      onfarm_inc + offfarm_inc + nplot * land_price * 10 - food_unsecure * 50
+    ][
+      set score sum [onfarm_inc + offfarm_inc + (ncow * 10 + ndonkey * 5 + nsrum * 3 + ntricycle * 30 + ngrain * (3) + nresidue * (.5))] of farmers + 
+      biodiversity + gov_microfinance - sum [food_unsecure * 50] of farmers
+    ]
+    
+    ;;average strategy score if possible
+    if strategyposition >= length strategyscore [set strategyposition length strategyscore - 1]
+    ifelse (item strategyposition strategyscore) = 0.0001 [
+      set strategyscore replace-item strategyposition strategyscore score
+    ][
+      let oldscore item strategyposition strategyscore
+      let newscore (oldscore + score) / 2
+      set strategyscore replace-item strategyposition strategyscore newscore
+    ]
+    ;;select the top 100 strategy with best score. if less then 100 strategies, only rank them.
+    let bestscore sort strategyscore
+    set bestscore reverse bestscore;;descending order i.e. max to min
+    
+    if length bestscore > 100 [
+      set bestscore sublist bestscore 0 100
+    ]
+    
+    let l length allstrategy
+    let i 0
+    while [i < length bestscore][
+      
+      let p position (item i bestscore) strategyscore
+      
+      set allstrategy fput (item p allstrategy) allstrategy
+      
+      set commonvote_field fput (item p commonvote_field) commonvote_field
+      set commonvote_shrub fput (item p commonvote_shrub) commonvote_shrub
+      set commonvote_forest fput (item p commonvote_forest) commonvote_forest
+      
+      set i i + 1
+    ]
+    
+    ;;sort all strategies score, max to min. max 100 elements
+    set strategyscore sort strategyscore
+    set strategyscore reverse strategyscore
+    ifelse length strategyscore > 100 [
+      set strategyscore sublist strategyscore 0 100
+      set allstrategy sublist allstrategy 0 100;l
+      set commonvote_field sublist commonvote_field 0 100
+      set commonvote_shrub sublist commonvote_shrub 0 100
+      set commonvote_forest sublist commonvote_forest 0 100
+    ][
+      set allstrategy sublist allstrategy 0 (l);l
+      ;set strategyscore sublist strategyscore 0 (l)
+      set commonvote_field sublist commonvote_field 0 (l)
+      set commonvote_shrub sublist commonvote_shrub 0 (l)
+      set commonvote_forest sublist commonvote_forest 0 (l)
+    ]
+    
+    ;;selecting only ordered part from loop. max 100 elements, see bestscore
+    ;set l l - length bestscore - 1
+    ;set allstrategy sublist allstrategy 0 (l);l
+    ;set commonvote_field sublist commonvote_field 0 (l)
+    ;set commonvote_shrub sublist commonvote_shrub 0 (l)
+    ;set commonvote_forest sublist commonvote_forest 0 (l)
+    ;show allstrategy
+  ]
+  
+end
+
+to common-vote
+  ;;common resources management
+  if month = "December" [
+    ifelse item 0 [activevote_field] of government = true [;;count farmers with [activevote_field = true] > 2 ;; old version, farmers vote
+      set open_fieldsold? true
+    ][
+      set open_fieldsold? false
+    ]
+    
+    ifelse item 0 [activevote_shrub] of government = true [;;count farmers with [activevote_shrub = true] > 2 
+      set open_shrub? true
+    ][
+      set open_shrub? false
+    ]
+    
+    ifelse item 0 [activevote_forest] of government = true[;;count farmers with [activevote_forest = true] > 2 
+      set open_forest? true
+    ][
+      set open_forest? false
+    ]
+    
+  ]
+end
+
+to export-data
+  ;;export strategy of farmers with max best score
+  if auto-play? [
+    set nsim nsim + 1
+    if nsim = runs * 3 [
+      export-all-plots (word "outputs/" "resplots_" sim ".csv")
+      let i 0 
+      ;;select top 10 strategies across farmers
+      let maxscore reverse sort(reduce sentence [strategyscore] of farmers)
+      set maxscore filter [j -> j > 0] maxscore
+      if length maxscore > 0 [
+        let len length maxscore
+        if len > 10 [
+         set len 10 
+        ]
+        set maxscore sublist maxscore 0 len 
+      ]
+      
+      ;;write output in seperate files, easier to import back due to limitation in csv extensions, cannot append data
+      if length maxscore > 0 [
+        file-open (word "outputs/" "resfarmstrategy_" sim ".csv")
+        let scorepos 0
+        while [i < length maxscore][
+          set scorepos [position (item i maxscore) strategyscore] of farmers
+          set scorepos filter [k -> k != false] scorepos
+          ifelse length scorepos > 1 [
+            set scorepos one-of scorepos
+          ][
+            set scorepos item 0 scorepos 
+          ]
+          csv:to-file (word "outputs/" "resfarmstrategy_" sim "-" i ".csv") [item scorepos allstrategy] of one-of farmers with [member? (item i maxscore) strategyscore] 
+          set i i + 1
+        ]     
+        
+        file-close
+      ]
+      
+      ;;write output for goverment agent
+      set i 0
+      let maxgov reverse sort(reduce sentence [strategyscore] of government)
+      set maxgov filter [j -> j > 0] maxgov
+      if length maxgov > 0 [
+        let len length maxgov
+        if len > 10 [
+          set len 10 
+        ]
+        set maxgov sublist maxgov 0 len 
+      ]
+      
+      if length maxgov > 0 [
+        file-open (word "outputs/" "resgovstrategy_" sim ".csv")
+        let scorepos 0
+        while [i < length maxgov][
+          set scorepos [position (item i maxgov) strategyscore] of government
+          set scorepos filter [k -> k != false] scorepos
+          ifelse length scorepos > 1 [
+            set scorepos one-of scorepos
+          ][
+            set scorepos item 0 scorepos 
+          ]
+          csv:to-file (word "outputs/" "resgovstrategy_" sim "-" i ".csv") [item scorepos allstrategy] of government 
+          set i i + 1
+        ]     
+        
+        file-close
+      ]
+      
+    ]
+  ]
+  
+  
+end
+
+to smart-player
+  if count joueurs < 4 [
+    create-robots
+  ]
+  
+  if any? joueurs with [substring pseudo 0 5 = "Smart"][
+    
+    ask joueurs with [substring pseudo 0 5 = "Smart"][
+      let idplays idplay
+      let i one-of (range 0 10)
+      ask farmers with [player = idplay][
+        let import_strategy csv:from-file (word "outputs/" "strategy_" i ".csv")
+        set mystrategy import_strategy
+        set newstrategy? false
+      ] 
+    ]
+    
+    let smartplayer [idplay] of joueurs with [substring pseudo 0 5 = "Smart"]
+    let i 0
+    
+    foreach smartplayer [
+      apply-strategy item i smartplayer
+      set i i + 1
+    ]
+    
+    ;;update resources
+    full-update-explo
+    update-labour
+    
+    ;;grow crops, include harvest of irrigated crops.
+    ;;PM: update croplist and add irrigated crops 
+    ;;PM: apply cropping system from already defined strategy
+    
+    ;;in case irrigated farm, define crop residues to be harvested
+    if month = "May" [
+      ask joueurs with [substring pseudo 0 5 = "Smart"][
+        let idplays idplay
+        set irr_residue_harvest item 0 [labour] of farmers with [player = idplays] 
+        set irr_residue_harvest one-of (range 0 (irr_residue_harvest + 1) 1)
+      ]
+    ]
+    
+    ;;harvest (only in May, see code)
+    ask joueurs with [substring pseudo 0 5 = "Smart"][
+      let idplays idplay
+      set residue_harvest item 0 [labour] of farmers with [player = idplays] 
+      set residue_harvest one-of (range 0 (residue_harvest + 1) 1)
+      harvest
+    ]
+    
+    ;;update resources
+    full-update-explo
+    update-labour
+    
+    ;;free grazing is included in livsim (in nextmonth)
+    
+    if month = "May" [
+      set i 0
+      foreach smartplayer[
+        
+        feedfamily-explo item i smartplayer
+        
+        let animlist shuffle (list "cattle" "donkey" "small ruminants")
+        directfeed-play item i smartplayer item 0 animlist
+        directfeed-play item i smartplayer item 1 animlist
+        directfeed-play item i smartplayer item 2 animlist
+        
+        set i i + 1
+      ]
+    ]
+    full-update-explo
+    update-labour
+    
+    
+    if month = "June" [
+      set i 0
+      foreach smartplayer[
+        
+        ;;feed houehold
+        feedfamily-explo item i smartplayer
+        
+        ;;each player feed its livestock with feed stocked
+        let animlist shuffle (list "cattle" "donkey" "small ruminants")
+        directfeed-play item i smartplayer item 0 animlist
+        directfeed-play item i smartplayer item 1 animlist
+        directfeed-play item i smartplayer item 2 animlist
+        
+      ]
+    ]
+    full-update-explo
+    update-labour
+    
+  ]
+end

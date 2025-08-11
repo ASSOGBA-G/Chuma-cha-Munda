@@ -1,0 +1,128 @@
+to export
+    ;file-open (word "resstats.csv")
+  let openf1 "NA"
+  let openf2 "NA"
+  let openf3 "NA"
+  let openf4 "NA"
+  
+  if any? joueurs with [idplay = "player 1"][set openf1 item 0[open_field?] of joueurs with [idplay = "player 1"]]
+  if any? joueurs with [idplay = "player 2"][set openf2 item 0[open_field?] of joueurs with [idplay = "player 2"]]
+  if any? joueurs with [idplay = "player 3"][set openf3 item 0[open_field?] of joueurs with [idplay = "player 3"]] 
+  if any? joueurs with [idplay = "player 4"][set openf4 item 0[open_field?] of joueurs with [idplay = "player 4"]]
+  
+  let myoutputs (list sim year month player1type player2type player3type player4type
+    item 0[ncow] of farmers with [player = "player 1"] item 0[ncow] of farmers with [player = "player 2"]
+    item 0[ncow] of farmers with [player = "player 3"] item 0[ncow] of farmers with [player = "player 4"]
+    sum [ncow] of farmers
+    item 0[nsrum] of farmers with [player = "player 1"] item 0[nsrum] of farmers with [player = "player 2"]
+    item 0[nsrum] of farmers with [player = "player 3"] item 0[nsrum] of farmers with [player = "player 4"]
+    sum [nsrum] of farmers
+    item 0[ndonkey] of farmers with [player = "player 1"] item 0[ndonkey] of farmers with [player = "player 2"]
+    item 0[ndonkey] of farmers with [player = "player 3"] item 0[ndonkey] of farmers with [player = "player 4"]
+    sum [ndonkey] of farmers
+    item 0[family_size] of farmers with [player = "player 1"] item 0[family_size] of farmers with [player = "player 2"]
+    item 0[family_size] of farmers with [player = "player 3"] item 0[family_size] of farmers with [player = "player 4"]
+    sum [family_size] of farmers
+    item 0[ncart] of farmers with [player = "player 1"] item 0[ncart] of farmers with [player = "player 2"]
+    item 0[ncart] of farmers with [player = "player 3"] item 0[ncart] of farmers with [player = "player 4"]
+    item 0[ntricycle] of farmers with [player = "player 1"] item 0[ntricycle] of farmers with [player = "player 2"]
+    item 0[ntricycle] of farmers with [player = "player 3"] item 0[ntricycle] of farmers with [player = "player 4"]
+    item 0[nfertilizer] of farmers with [player = "player 1"] item 0[nfertilizer] of farmers with [player = "player 2"]
+    item 0[nfertilizer] of farmers with [player = "player 3"] item 0[nfertilizer] of farmers with [player = "player 4"]
+    sum [nfertilizer] of farmers
+    item 0[nmanure] of farmers with [player = "player 1"] item 0[nmanure] of farmers with [player = "player 2"]
+    item 0[nmanure] of farmers with [player = "player 3"] item 0[nmanure] of farmers with [player = "player 4"]
+    sum [nmanure] of farmers
+    
+    item 0[ngrain] of farmers with [player = "player 1"] item 0[ngrain] of farmers with [player = "player 2"]
+    item 0[ngrain] of farmers with [player = "player 3"] item 0[ngrain] of farmers with [player = "player 4"]
+    sum [ngrain] of farmers
+    
+    item 0[alharv] of farmers with [player = "player 1"] item 0[alharv] of farmers with [player = "player 2"]
+    item 0[alharv] of farmers with [player = "player 3"] item 0[alharv] of farmers with [player = "player 4"]
+    sum [alharv] of farmers
+    
+    count turtles with [farm = "1" and hidden? = true and shape = "star"] count turtles with [farm = "2" and hidden? = true and shape = "star"]
+    count turtles with [farm = "3" and hidden? = true and shape = "star"] count turtles with [farm = "4" and hidden? = true and shape = "star"]
+    count turtles with [hidden? = true and shape = "star"]
+    count turtles with [farm = "1" and hidden? = false and shape = "star"] count turtles with [farm = "2" and hidden? = false and shape = "star"]
+    count turtles with [farm = "3" and hidden? = false and shape = "star"] count turtles with [farm = "4" and hidden? = false and shape = "star"]
+    count turtles with [hidden? = false and shape = "star"]
+    presid1 presid2 presid3 presid4
+    openf1
+    openf2
+    openf3
+    openf4
+    item 0[nconc] of farmers with [player = "player 1"] item 0[nconc] of farmers with [player = "player 2"]
+    item 0[nconc] of farmers with [player = "player 3"] item 0[nconc] of farmers with [player = "player 4"]
+    item 0[food_unsecure] of farmers with [player = "player 1"] item 0[food_unsecure] of farmers with [player = "player 2"]
+    item 0[food_unsecure] of farmers with [player = "player 3"] item 0[food_unsecure] of farmers with [player = "player 4"]
+    sum [food_unsecure] of farmers
+    item 0 [onfarm_inc] of turtles with [player = "player 1" and shape = "person farmer"] 
+    item 0 [onfarm_inc] of turtles with [player = "player 2" and shape = "person farmer"]
+    item 0 [onfarm_inc] of turtles with [player = "player 3" and shape = "person farmer"] 
+    item 0 [onfarm_inc] of turtles with [player = "player 4" and shape = "person farmer"]
+    item 0 [offfarm_inc] of turtles with [player = "player 1" and shape = "person farmer"] 
+    item 0 [offfarm_inc] of turtles with [player = "player 2" and shape = "person farmer"]
+    item 0 [offfarm_inc] of turtles with [player = "player 3" and shape = "person farmer"] 
+    item 0 [offfarm_inc] of turtles with [player = "player 4" and shape = "person farmer"]
+    sum [onfarm_inc + offfarm_inc] of farmers
+  )
+  
+  ifelse (file-exists? (word "outputs/" "resstats_" sim ".csv")) = false[
+    ifelse year = 1 and month = "December"[
+      ;file-print headoutput
+      ;file-print output
+      set output (list headoutput myoutputs) 
+    ]
+    [set output sentence output (list myoutputs)]
+  ][
+    if length output = 0 [
+      file-open (word "outputs/" "resstats_" sim ".csv")
+      set output csv:from-file (word "outputs/" "resstats_" sim ".csv")
+      file-close
+    ]
+    set output sentence output (list myoutputs)
+  ]
+  
+  
+  if year = 5 and month = "June" [
+    file-open (word "outputs/" "resstats_" sim ".csv")
+    csv:to-file (word "outputs/" "resstats_" sim ".csv") output
+    file-close
+    
+    file-open (word "outputs/" "resflux_" sim ".csv")
+    csv:to-file (word "outputs/" "resflux_" sim ".csv") flux
+    file-close
+    
+    file-open (word "outputs/" "resmarket_" sim ".csv")
+    csv:to-file (word "outputs/" "resmarket_" sim ".csv") buysell
+    file-close
+    
+    ;set crop-inputs (list crop-inputs)
+    set crop-inputs sentence crop-inputs (crop-inputs1)
+    set crop-inputs sentence crop-inputs (crop-inputs2)
+    set crop-inputs sentence crop-inputs (crop-inputs3)
+    set crop-inputs sentence crop-inputs (crop-inputs4)
+    file-open (word "outputs/" "rescrop-inputs_" sim ".csv")
+    csv:to-file (word "outputs/" "rescrop-inputs_" sim ".csv") crop-inputs
+    file-close
+    
+  ]
+  
+  
+  ;file-open (word "resflux.txt")
+  ;set flux fput month flux set flux fput year flux
+  ;file-print flux
+  ;file-close
+  
+  ;file-open (word "resmsg.txt")
+  ;set messages fput month messages set messages fput year messages
+  ;file-print messages
+  ;file-close
+  
+  ;file-open (word "resmarket.txt")
+  ;set buysell fput month buysell set buysell fput year buysell
+  ;file-print buysell
+  ;file-close
+end

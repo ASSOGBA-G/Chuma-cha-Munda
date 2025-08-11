@@ -1,0 +1,710 @@
+to investfarm
+  ;appmanure-explo
+  ;appfertilizer-explo
+  appinput-explo "manure"
+  appinput-explo "residue"
+  appinput-explo "fertilizer"
+  choose-crops
+  ask joueurs [
+    let idplays idplay
+    livupdate idplays
+  ]
+end
+
+
+to choose-crops
+  ;;crops and intercropping chosen
+  ask farmers [
+    let posi pos
+    ask patches with [cultiv = "yes" and (read-from-string (substring plabel 0 1)) = posi][
+      set crop1 one-of (range 1 5 1)
+      set crop2 one-of (range 1 5 1)
+    ]
+  ]
+  
+  ask patches with [cultiv = "yes" and crop1 = 1 and (crop2 = 2 or crop2 = 3)][
+    set intercropping "yes"
+    set intercroptype one-of (list "tradi" "strip")
+    set intertrack lput 1 intertrack
+    if length intertrack > 3 [
+      set intertrack sublist intertrack 1 3;;last element not included in the sublist so it is added again (next line)
+      set intertrack lput 1 intertrack
+    ]
+  ]
+  
+  ask patches with [cultiv = "yes" and crop1 = crop2][
+    set solecropping "yes" 
+    set soletrack lput 1 soletrack
+    if length soletrack > 3 [
+      set soletrack sublist soletrack 1 3;;last element not included in the sublist so it is added again (next line)
+      set soletrack lput 1 soletrack
+    ]
+  ]
+  
+  ask patches with [cultiv = "yes" and count turtles-here with [typo = "manure"] > 0][
+    set manuretrack lput 1 manuretrack 
+    if length manuretrack > 3 [
+      set manuretrack sublist manuretrack 1 3;;last element not included in the sublist so it is added again (next line)
+      set manuretrack lput 1 manuretrack
+    ]
+  ]
+  
+end
+
+to cropstats-sow
+  ;;cropping system stats. remaining stats in sow and produce procedures. see main code
+  let spatches patches with [cultiv = "yes"]
+  let long length sentence [crop1] of spatches [crop2] of spatches
+  let pc1 length sentence [crop1] of spatches with [crop1 = 1] [crop2] of spatches with [crop2 = 1] / (long)
+  let pc2 length sentence [crop1] of spatches with [crop1 = 2] [crop2] of spatches with [crop2 = 2]/ (long)
+  let pc3 length sentence [crop1] of spatches with [crop1 = 3] [crop2] of spatches with [crop2 = 3] / (long)
+  let pc4 length sentence [crop1] of spatches with [crop1 = 4] [crop2] of spatches with [crop2 = 4] / (long)
+  let ptrad count patches with [intercroptype = "tradi"] / (count patches with [cultiv = "yes"])
+  let pstrip count patches with [intercroptype = "strip"] / (count patches with [cultiv = "yes"])
+  
+  ;;double-check max 2 per plot
+  
+  ask spatches [
+    if count turtles-here with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ] > 2 [
+      let mm count turtles-here with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ]
+      ask n-of abs(2 - mm) turtles-here with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ][die]
+    ]
+    
+    if count turtles-here with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white ] > 2 [
+      let mm count turtles-here with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ]
+      ask n-of abs(2 - mm) turtles-here with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white ][die]
+    ]
+  ]
+  
+  let mapp count turtles with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ]
+  let fapp count turtles with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white  ]
+  
+  ;;dominating crops plots
+  let splot patches with [crop1 = 1 or crop2 = 1]
+  let cplot patches with [(crop1 = 2 and crop2 = 2) or (crop1 = 2 and member? crop2 [3 4]) or (crop2 = 2 and member? crop1 [3 4])]
+  let mplot patches with [(crop1 = 3 and crop2 = 3) or (crop1 = 3 and crop2 = 4) or (crop2 = 3 and crop1 = 4)]
+  let seplot patches with [crop1 = 4 and crop2 = 4]
+  
+  let mapp1 0
+  let mapp2 0
+  let mapp3 0
+  let mapp4 0
+  if mapp > 0 [
+    set mapp1 turtles-on splot
+    set mapp1 count mapp1 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ] / mapp
+    set mapp2 turtles-on cplot
+    set mapp2 count mapp2 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ] / mapp
+    set mapp3 turtles-on mplot
+    set mapp3 count mapp3 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ] / mapp
+    set mapp4 turtles-on seplot
+    set mapp4 count mapp4 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white ] / mapp    
+    ;show (list "manurev" (sum (list mapp1 mapp2 mapp3 mapp4)) mapp)
+  ]
+  
+  let fapp1 0
+  let fapp2 0
+  let fapp3 0
+  let fapp4 0
+  if fapp > 0 [
+    set fapp1 turtles-on splot
+    set fapp1 count fapp1 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white ] / fapp
+    set fapp2 turtles-on cplot
+    set fapp2 count fapp2 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white ] / fapp
+    set fapp3 turtles-on mplot
+    set fapp3 count fapp3 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white ] / fapp
+    set fapp4 turtles-on seplot
+    set fapp4 count fapp4 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white ] / fapp 
+    ;show (list "fertilizerv" (sum (list fapp1 fapp2 fapp3 fapp4)) fapp) 
+  ]
+  
+  ;;adjust. max manure  + mulch = 2 per plot. already done in appmanure-explo: max 2 manure/mulch per plot.
+  ask spatches [
+    let a count turtles-here with [typo = "manure" and hidden? = false] 
+    let b count turtles-here with [shape = "star" and mulch? = true]
+    if (a + b) > 2[
+      let c 0
+      ifelse a > 0 [set c a][set c 2]
+      ask n-of abs(c - b) turtles-here with [shape = "star" and mulch? = true][die]
+      
+    ]
+    
+  ]
+  
+  let qmulch count turtles with [shape = "star" and mulch? = true  and [pcolor] of patch-here != white]
+  let qmulch1 0
+  let qmulch2 0
+  let qmulch3 0
+  let qmulch4 0
+  if qmulch > 0 [
+    set qmulch1 turtles-on splot
+    set qmulch1 count qmulch1 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white ] / qmulch
+    set qmulch2 turtles-on cplot
+    set qmulch2 count qmulch2 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white ] / qmulch
+    set qmulch3 turtles-on mplot
+    set qmulch3 count qmulch3 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white ] / qmulch
+    set qmulch4 turtles-on seplot
+    set qmulch4 count qmulch4 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white ] / qmulch  
+    ;show (list "mulchv" (sum (list qmulch1 qmulch2 qmulch3 qmulch4)) qmulch)
+  ]
+  
+  
+  ifelse (year = 1  and month = "July") [
+    set crop-inputs (list sim year month pc1 pc2 pc3 pc4 ptrad pstrip mapp fapp qmulch mapp1 mapp2 mapp3 mapp4 fapp1 fapp2 fapp3 fapp4 qmulch1 qmulch2 qmulch3 qmulch4)
+    
+    set crop-inputs1 cropstats "1"
+    set crop-inputs2 cropstats "2"
+    set crop-inputs3 cropstats "3"
+    set crop-inputs4 cropstats "4"
+  ][
+    set t-crop-inputs (list sim year month pc1 pc2 pc3 pc4 ptrad pstrip mapp fapp qmulch mapp1 mapp2 mapp3 mapp4 fapp1 fapp2 fapp3 fapp4 qmulch1 qmulch2 qmulch3 qmulch4)
+    
+    set t-crop-inputs1 cropstats "1"
+    set t-crop-inputs2 cropstats "2"
+    set t-crop-inputs3 cropstats "3"
+    set t-crop-inputs4 cropstats "4"
+  ]
+  
+end
+
+to cropstats-harvest
+  let grainT count turtles with [typo = "grain" and shape = "cylinder"]
+  let grainP count turtles with [typo = "grain" and shape = "cylinder" and prodHereNow = "yes"]
+  let grain1 count turtles with [typo = "grain" and color = red and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  let grain2 count turtles with [typo = "grain" and color = yellow and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  let grain3 count turtles with [typo = "grain" and color = magenta and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  let grain4 count turtles with [typo = "grain" and color = blue and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  
+  let residueT count turtles with [typo = "residue" and shape = "star"]
+  let residueP count turtles with [typo = "residue" and shape = "star" and prodHereNow = "yes"]
+  let residue1 count turtles with [typo = "residue" and color = red and shape = "star" and prodHereNow = "yes"] / residueP
+  let residue2 count turtles with [typo = "residue" and color = yellow and shape = "star" and prodHereNow = "yes"] / residueP
+  let residue3 count turtles with [typo = "residue" and color = magenta and shape = "star" and prodHereNow = "yes"] / residueP
+  let residue4 count turtles with [typo = "residue" and color = blue and shape = "star" and prodHereNow = "yes"] / residueP
+  
+  ifelse (year = 1  and month = "July")[
+    set crop-inputs sentence crop-inputs (list grainT grainP grain1 grain2 grain3 grain4 residueT residue1 residue2 residue3 residue4)
+    set crop-inputs (list crop-inputs)
+    
+    set crop-inputs1 sentence crop-inputs1 (grainresid "1")
+    set crop-inputs2 sentence crop-inputs2 (grainresid "2")
+    set crop-inputs3 sentence crop-inputs3 (grainresid "3")
+    set crop-inputs4 sentence crop-inputs4 (grainresid "4")
+    
+    set crop-inputs1 (list crop-inputs1)
+    set crop-inputs2 (list crop-inputs2)
+    set crop-inputs3 (list crop-inputs3)
+    set crop-inputs4 (list crop-inputs4)
+  ][
+    set t-crop-inputs sentence t-crop-inputs (list grainT grainP grain1 grain2 grain3 grain4 residueT residueP residue1 residue2 residue3 residue4)
+    
+    set t-crop-inputs1 sentence t-crop-inputs1 (grainresid "1")
+    set t-crop-inputs2 sentence t-crop-inputs2 (grainresid "2")
+    set t-crop-inputs3 sentence t-crop-inputs3 (grainresid "3")
+    set t-crop-inputs4 sentence t-crop-inputs4 (grainresid "4")
+    
+    ;;update inputs, list of lists
+    set crop-inputs sentence crop-inputs (list t-crop-inputs)
+    set crop-inputs1 sentence crop-inputs1 (list t-crop-inputs1)
+    set crop-inputs2 sentence crop-inputs2 (list t-crop-inputs2)
+    set crop-inputs3 sentence crop-inputs3 (list t-crop-inputs3)
+    set crop-inputs4 sentence crop-inputs4 (list t-crop-inputs4)
+  ]
+end
+
+to-report grainresid [playerid]
+  let grainT count turtles with [typo = "grain" and farm = playerid  and shape = "cylinder"];;total amount of grains
+  let grainP count turtles with [typo = "grain" and farm = playerid  and shape = "cylinder" and prodHereNow = "yes"];;grains produced
+  let grain1 count turtles with [typo = "grain" and color = red and farm = playerid  and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  let grain2 count turtles with [typo = "grain" and color = yellow and farm = playerid  and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  let grain3 count turtles with [typo = "grain" and color = magenta and farm = playerid  and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  let grain4 count turtles with [typo = "grain" and color = blue and farm = playerid and shape = "cylinder" and prodHereNow = "yes"] / grainP
+  
+  let residueT count turtles with [typo = "residue" and farm = playerid  and shape = "star"];;total amount of grains
+  let residueP count turtles with [typo = "residue" and farm = playerid  and shape = "star" and prodHereNow = "yes"];;residue produced. see p(1-4)residHarv in resstats for residue harvested
+  let residue1 count turtles with [typo = "residue" and color = red and farm = playerid  and shape = "star" and prodHereNow = "yes"] / residueP
+  let residue2 count turtles with [typo = "residue" and color = yellow and farm = playerid  and shape = "star" and prodHereNow = "yes"] / residueP
+  let residue3 count turtles with [typo = "residue" and color = magenta and farm = playerid  and shape = "star" and prodHereNow = "yes"] / residueP
+  let residue4 count turtles with [typo = "residue" and color = blue and farm = playerid  and shape = "star" and prodHereNow = "yes"] / residueP
+  
+  let res (list grainT grainP grain1 grain2 grain3 grain4 residueT residueP residue1 residue2 residue3 residue4)
+  report res
+  
+end
+
+;;cropping system stats. before sowing
+to-report cropstats [playerid]
+  let spatches patches with [cultiv = "yes" and plabel = playerid]
+  let long length sentence [crop1] of spatches [crop2] of spatches
+  
+  let pc1 length sentence [crop1] of spatches with [crop1 = 1] [crop2] of spatches with [crop1 = 1] / (long)
+  let pc2 length sentence [crop1] of spatches with [crop1 = 2] [crop2] of spatches with [crop1 = 2]/ (long)
+  let pc3 length sentence [crop1] of spatches with [crop1 = 3] [crop2] of spatches with [crop1 = 3] / (long)
+  let pc4 length sentence [crop1] of spatches with [crop1 = 4] [crop2] of spatches with [crop1 = 4] / (long)
+  let ptrad count patches with [intercroptype = "tradi" and plabel = playerid] / (count patches with [cultiv = "yes" and plabel = playerid])
+  let pstrip count patches with [intercroptype = "strip" and plabel = playerid] / (count patches with [cultiv = "yes" and plabel = playerid])
+  let mapp count turtles with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white and farm = playerid]
+  let fapp count turtles with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white  and farm = playerid]
+  
+  ;;dominating crops plots
+  let splot patches with [crop1 = 1 or crop2 = 1]
+  let cplot patches with [(crop1 = 2 and crop2 = 2) or (crop1 = 2 and member? crop2 [3 4]) or (crop2 = 2 and member? crop1 [3 4])]
+  let mplot patches with [(crop1 = 3 and crop2 = 3) or (crop1 = 3 and crop2 = 4) or (crop2 = 3 and crop1 = 4)]
+  let seplot patches with [crop1 = 4 and crop2 = 4]
+  
+  let mapp1 0
+  let mapp2 0
+  let mapp3 0
+  let mapp4 0
+  if mapp > 0 [
+    set mapp1 turtles-on splot
+    set mapp1 count mapp1 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / mapp
+    set mapp2 turtles-on cplot
+    set mapp2 count mapp2 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / mapp
+    set mapp3 turtles-on mplot
+    set mapp3 count mapp3 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / mapp
+    set mapp4 turtles-on seplot
+    set mapp4 count mapp4 with [typo = "manure" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / mapp    
+    ;show (list "manure" (sum (list mapp1 mapp2 mapp3 mapp4)) mapp)
+  ]
+  
+  let fapp1 0
+  let fapp2 0
+  let fapp3 0
+  let fapp4 0
+  if fapp > 0 [
+    set fapp1 turtles-on splot
+    set fapp1 count fapp1 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / fapp
+    set fapp2 turtles-on cplot
+    set fapp2 count fapp2 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / fapp
+    set fapp3 turtles-on mplot
+    set fapp3 count fapp3 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / fapp
+    set fapp4 turtles-on seplot
+    set fapp4 count fapp4 with [typo = "fertilizer" and hidden? = false and [pcolor] of patch-here != white and farm = playerid] / fapp 
+    ;show (list "fertilizer" (sum (list fapp1 fapp2 fapp3 fapp4)) fapp) 
+  ]
+  
+  let qmulch count turtles with [shape = "star" and mulch? = true and farm = playerid and [pcolor] of patch-here != white]
+  
+  let qmulch1 0
+  let qmulch2 0
+  let qmulch3 0
+  let qmulch4 0
+  if qmulch > 0 [
+    set qmulch1 turtles-on splot
+    set qmulch1 count qmulch1 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white and farm = playerid] / qmulch
+    set qmulch2 turtles-on cplot
+    set qmulch2 count qmulch2 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white and farm = playerid] / qmulch
+    set qmulch3 turtles-on mplot
+    set qmulch3 count qmulch3 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white and farm = playerid] / qmulch
+    set qmulch4 turtles-on seplot
+    set qmulch4 count qmulch4 with [shape = "star" and mulch? = true and [pcolor] of patch-here != white and farm = playerid] / qmulch  
+    ;show (list "mulch" (sum (list qmulch1 qmulch2 qmulch3 qmulch4)) qmulch)
+  ]
+  let res (list sim year month pc1 pc2 pc3 pc4 ptrad pstrip mapp fapp qmulch mapp1 mapp2 mapp3 mapp4 fapp1 fapp2 fapp3 fapp4 qmulch1 qmulch2 qmulch3 qmulch4)
+  report res
+end
+
+to appmanure-explo
+  ;let appman apply_n_manure
+  ;let idplays idplay
+  ask farmers [
+    let nmanreserv count out-link-neighbors with [typo = "manure"
+      and [pcolor] of patch-here != white]
+    ;let appman one-of (range 0 (nmanure + 1) 1);;can apply min no manure et max all manure. PM (no +1): one manure must remained left on the board
+    let appman nmanreserv
+    if appman <= (nmanure - nmanreserv) [
+      ask n-of ((nmanure - nmanreserv) - appman) out-link-neighbors with [typo = "manure" and 
+        [pcolor] of patch-here != white][
+        move-to one-of patches with [pcolor = 0];;black patches
+        set hidden? true
+      ] 
+    ]
+  ]
+end
+
+to appinput-explo [input]
+  
+  ask farmers [
+    let myfarm farm
+    let nmanreserv count out-link-neighbors with [typo = input and [pcolor] of patch-here != white]
+    ;let appman one-of (range 0 (nmanure + 1) 1);;can apply min no manure et max all manure. PM (no +1): one manure must remained left on the board
+    let appman nmanreserv
+    let nbiom 0
+    if input = "manure" [set nbiom nmanure]
+    if input = "fertilizer" [set nbiom nfertilizer]
+    if input = "residue" [
+      set nbiom count out-link-neighbors with [typo = input and [pcolor] of patch-here != white and shape = "star"]
+      ask out-link-neighbors with [typo = input and [pcolor] of patch-here != white and shape = "star"][set mulch? false]
+    ]
+    set appman one-of (range 0 (nbiom + 1) 1)
+    let maxman 2 * count patches with [plabel = myfarm and pcolor != white and cultiv = "yes"]
+    if appman > maxman [set appman maxman];;max 2 organic/mineral fertilizer per plot
+    
+    
+    
+    ;;move transfered or bought biomass to owner fields
+    ask out-link-neighbors with [typo = input and [pcolor] of patch-here != white and [pcolor] of patch-here != 0][
+      
+      move-to one-of patches with [plabel = myfarm and pcolor != white and cultiv = "yes"]
+      if any? patches with [plabel = myfarm and
+        count turtles-here < 2 and pcolor != white and cultiv = "yes"]
+      [move-to one-of patches with [plabel = myfarm and
+        count turtles-here < 2 and pcolor != white and cultiv = "yes"]]
+      
+      if any? patches with [plabel = myfarm and
+        count turtles-here = 0 and pcolor != white and cultiv = "yes"]
+      [move-to one-of patches with [plabel = myfarm and
+        count turtles-here = 0 and pcolor != white and cultiv = "yes"]] 
+      
+    ]
+    
+    ;show (list appman nbiom nmanreserv)
+    if appman <= (nbiom) [
+      ;unused fertilizer/manure/mulch disappear from the game. former version = moved to black patches
+      ask n-of ((nbiom) - appman) out-link-neighbors with [typo = input and 
+        [pcolor] of patch-here != white][
+        ;move-to one-of patches with [pcolor = 0];;black patches
+        ;set hidden? true
+        die
+      ]
+      
+      ;;specify crop residue applied as mulch
+      if input = "residue" [
+        ;show count out-link-neighbors with [typo = input and shape = "star"];"ok"
+        ;show [farm] of turtles with [shape = "star" and farm = myfarm];count turtles with [shape = "star" and farm = myfarm]
+        ;ask turtles with [shape = "star"][show (list farm myfarm)]
+        ;show "ok";myfarm
+        ask out-link-neighbors with [typo = input and shape = "star" and [pcolor] of patch-here != white and [pcolor] of patch-here != 0][
+          set mulch? true 
+          
+        ]
+      ]
+      
+    ]
+  ]
+  
+end
+
+to appfertilizer-explo
+  ;let appfert apply_n_fertilizer
+  ;let idplays idplay
+  ask farmers[
+    let myfarm farm
+    let nfertreserv count out-link-neighbors with [typo = "fertilizer"
+      and [pcolor] of patch-here != white]
+    let appfert one-of (range 0 (nfertreserv + 1) 1);;can apply min no fertilizer et max all fertilizer
+    ;let appfert nfertreserv
+    
+    
+    ;;move transfered or bought biomass to owner fields
+    ask out-link-neighbors with [typo = "fertilizer" and [pcolor] of patch-here != white and [pcolor] of patch-here != 0][
+      
+      move-to one-of patches with [plabel = myfarm and pcolor != white and cultiv = "yes"]
+      if any? patches with [plabel = myfarm and
+        count turtles-here < 2 and pcolor != white and cultiv = "yes"]
+      [move-to one-of patches with [plabel = myfarm and
+        count turtles-here < 2 and pcolor != white and cultiv = "yes"]]
+      
+      if any? patches with [plabel = myfarm and
+        count turtles-here = 0 and pcolor != white and cultiv = "yes"]
+      [move-to one-of patches with [plabel = myfarm and
+        count turtles-here = 0 and pcolor != white and cultiv = "yes"]] 
+      
+    ]
+    
+    let maxfert 2 * count patches with [plabel = myfarm and pcolor != white and cultiv = "yes"]
+    if appfert > maxfert [set appfert maxfert]
+    ask n-of (appfert) out-link-neighbors with [typo = "fertilizer" and 
+      [pcolor] of patch-here != white][
+      move-to one-of patches with [pcolor = 0];;black patches
+      set hidden? true
+    ] 
+  ]
+end
+
+to compute [biomass]
+  let shp 0
+  let sz 0
+  let sprout-what 0
+  ifelse biomass = "grain" [
+    set shp "cylinder" 
+    set sz .75 
+    set sprout-what ngseason
+  ][set shp "star" 
+    set sz .5 
+    set sprout-what nrseason
+  ]
+  
+  ask farmers [
+    let posi pos
+    set cultivplot patches with [cultiv = "yes"]
+    set cultivplot cultivplot with [(read-from-string (substring plabel 0 1)) = posi]
+    let ferme farm
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;gain of grain and residue due to fertilizer
+    
+    ask cultivplot with [ferti > 0][
+      if ferti > 2 [set ferti 2]; even if there is more than 2 only 2 will contribute to production
+      let bonus-sole 1
+      let gfac 0
+      let rfac 0
+      let fac 0
+      ifelse saison = "Good" [set gfac 1 set rfac 1][set rfac 1]
+      ifelse biomass = "grain" [set fac gfac][set fac rfac]
+      
+      ;;penalties due to 3 consecutive years of monculture
+      ;if length soletrack > 0 [
+      ;  if sum soletrack >= 3 [ 
+      ;    ifelse season = "Good"[
+      ;      set bonus-sole 0.5
+      ;    ][set bonus-sole 0]
+      ;  ] 
+      ;]
+      
+      sprout ferti * fac [
+        set typo biomass
+        set shape shp
+        set size sz
+        ;;colors per crop
+        if crop1 = 1 or crop2 = 1 [set color red]
+        if member? 1 (list crop1 crop2) = false and crop1 = 2 or crop2 = 2 [set color yellow]
+        if member? 1 (list crop1 crop2) = false and member? 2 (list crop1 crop2) = false and (crop1 = 3 or crop2 = 3) [set color magenta]
+        if crop1 = 4 and crop2 = 4 [set color blue]
+        set farm ferme
+        set prodHereNow "yes"
+        
+        if biomass = "residue"[
+          move-to one-of cultivplot 
+          set hidden? false 
+          set mulch? false
+        ]
+      ]
+    ]
+    
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;gain of residue due to manure
+    
+    ask cultivplot with [manu > 0][
+      let bonus-sole 1
+      let bonus-manure 0
+      
+      if manu > 2 [set manu 2]
+      let gfac 1
+      let rfac 1
+      let fac 0
+      
+      ;if length soletrack > 0 [
+      ;  if sum soletrack >= 3 [ 
+      ;    ifelse season = "Good"[
+      ;      set bonus-sole 0.5
+      ;    ][set bonus-sole 0]
+      ;  ] 
+      ;]
+      
+      ;if bonus-sole = 0 [set bonus-manure 0];;in bad years, following 3 years of monocrop, no production
+      
+      ifelse biomass = "grain" [set fac gfac][set fac rfac]
+      
+      sprout manu * fac [
+        set typo biomass
+        set shape shp
+        set size sz
+        ;;colors per crop
+        if crop1 = 1 or crop2 = 1 [set color red]
+        if member? 1 (list crop1 crop2) = false and crop1 = 2 or crop2 = 2 [set color yellow]
+        if member? 1 (list crop1 crop2) = false and member? 2 (list crop1 crop2) = false and (crop1 = 3 or crop2 = 3) [set color magenta]
+        if crop1 = 4 and crop2 = 4 [set color blue]
+        set farm ferme
+        set prodHereNow "yes"
+        
+        if biomass = "residue"[
+          move-to one-of cultivplot 
+          set hidden? false 
+          set mulch? false
+        ]
+      ]
+    ]
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;gain of grain and (residue if mulch = mungbean) due to mulch
+    
+    let paille sum [mulch] of cultivplot
+    ask cultivplot with [pailles > 0][
+      if pailles > 2 [set pailles 2]
+      ;;max 2 organic input per plot
+      if manu + pailles > 2 [
+        ifelse manu = 2 [set pailles 0][set pailles 2 - manu]
+      ]
+      
+      if pailles > 0 [  
+        let gfac 1
+        let rfac 0
+        let fac 0
+        let facmg 0
+        let nmg count turtles-here with [color = blue and typo = "residue"]
+        if nmg > pailles [set nmg one-of (range 0 (pailles + 1) 1)]
+        let oth pailles - nmg
+        ifelse biomass = "grain" [set fac gfac][set fac rfac]
+        if biomass = "residue" [set facmg 1];;rules mungbean gives additional residue
+        
+        sprout (pailles * fac + (nmg * (facmg))) [
+          set typo biomass
+          set shape shp
+          set size sz
+          set color yellow
+          ;;colors per crop
+          if crop1 = 1 or crop2 = 1 [set color red]
+          if member? 1 (list crop1 crop2) = false and crop1 = 2 or crop2 = 2 [set color yellow]
+          if member? 1 (list crop1 crop2) = false and member? 2 (list crop1 crop2) = false and (crop1 = 3 or crop2 = 3) [set color magenta]
+          if crop1 = 4 and crop2 = 4 [set color blue]
+          set farm ferme
+          set prodHereNow "yes"
+          
+          if biomass = "residue"[
+            move-to one-of cultivplot 
+            set hidden? false 
+            set mulch? false
+          ]
+        ]
+      ]
+    ]
+    
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;gain of one legume grain due to 2 consecutives years of intercrop
+    
+    ask cultivplot with [sum intertrack >= 3] [
+      let bonus-intcrp 1
+      let gfac 1
+      let rfac 0
+      let fac 0
+      
+      ifelse biomass = "grain" [set fac gfac][set fac rfac]
+      
+      sprout bonus-intcrp * fac[
+        set typo biomass
+        set shape shp
+        set size sz
+        ;;colors per bonus grain
+        if member? 1 (list crop1 crop2) = true and member? 2 (list crop1 crop2) = true [set color yellow]
+        if member? 1 (list crop1 crop2) = true and member? 3 (list crop1 crop2) [set color magenta]
+        if member? 1 (list crop1 crop2) = true and member? 4 (list crop1 crop2) [set color blue]
+        if member? 2 (list crop1 crop2) = true and member? 3 (list crop1 crop2) [set color magenta]
+        if member? 2 (list crop1 crop2) = true and member? 4 (list crop1 crop2) [set color blue]
+        if member? 3 (list crop1 crop2) = true and member? 4 (list crop1 crop2) [set color blue]
+        set farm ferme
+        set prodHereNow "yes"
+        
+        if biomass = "residue"[
+          move-to one-of cultivplot 
+          set hidden? false 
+          set mulch? false
+        ]
+      ]
+    ]
+    
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;gain of one grain of dominant crop due to 2 consecutives years of manure application
+    
+    ask cultivplot with [sum manuretrack >= 3] [
+      let bonus-manure 1
+      let gfac 1
+      let rfac 0
+      let fac 0
+      
+      ifelse biomass = "grain" [set fac gfac][set fac rfac]
+      
+      sprout bonus-manure * fac[
+        set typo biomass
+        set shape shp
+        set size sz
+        ;;colors per bonus grain
+        if crop1 = 1 or crop2 = 1 [set color red]
+        if member? 1 (list crop1 crop2) = false and crop1 = 2 or crop2 = 2 [set color yellow]
+        if member? 1 (list crop1 crop2) = false and member? 2 (list crop1 crop2) = false and (crop1 = 3 or crop2 = 3) [set color magenta]
+        if crop1 = 4 and crop2 = 4 [set color blue]
+        set farm ferme
+        set prodHereNow "yes"
+        
+        if biomass = "residue"[
+          move-to one-of cultivplot 
+          set hidden? false
+          set mulch? false
+        ]
+      ]
+    ]
+    
+    
+    ;;removing used mulch
+    ask out-link-neighbors with [shape = "star" and mulch? = true][die]
+    
+    ;ask cultivplot [
+    ;  set mulch count turtles-here with [shape = "star" and open = "no" and mulch? = true]
+    ;]
+    
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;normal production depending on season
+    
+    ask cultivplot [
+      
+      ; penalty due to 2 consecutive years of sole cropping
+      let bonus-sole 1
+      if length soletrack > 0 [
+        if sum soletrack >= 3 [ 
+          ifelse saison = "Good"[
+            set bonus-sole 0.5
+          ][set bonus-sole 0]
+        ] 
+      ]
+      
+      
+      let j 1
+      
+      repeat sprout-what * bonus-sole [
+        sprout 1 [
+          set typo biomass
+          set shape shp
+          set size sz
+          set twin j
+          ;;colors per crop
+          if crop1 = 1 or crop2 = 1 [set color red]
+          if member? 1 (list crop1 crop2) = false and crop1 = 2 or crop2 = 2 [set color yellow]
+          if member? 1 (list crop1 crop2) = false and member? 2 (list crop1 crop2) = false and (crop1 = 3 or crop2 = 3) [set color magenta]
+          if crop1 = 4 and crop2 = 4 [set color blue]
+          
+          if crop1 != crop2 [
+            set falsetwin? true
+            if member? 1 (list crop1 crop2) = true and member? 2 (list crop1 crop2) = true [set falsetwin-color yellow]
+            if member? 1 (list crop1 crop2) = true and member? 3 (list crop1 crop2) [set falsetwin-color magenta]
+            if member? 1 (list crop1 crop2) = true and member? 4 (list crop1 crop2) [set falsetwin-color blue]
+            if member? 2 (list crop1 crop2) = true and member? 3 (list crop1 crop2) [set falsetwin-color magenta]
+            if member? 2 (list crop1 crop2) = true and member? 4 (list crop1 crop2) [set falsetwin-color blue]
+            if member? 3 (list crop1 crop2) = true and member? 4 (list crop1 crop2) [set falsetwin-color blue]
+          ]
+          set farm ferme
+          set prodHereNow "yes"
+          
+          if biomass = "residue"[
+            move-to one-of cultivplot 
+            set hidden? false
+            set mulch? false
+          ]
+        ]
+        set j j + 1
+      ]
+      
+    ]
+    
+    ;;updating colors
+    if saison = "Good" [
+      let ntwin count turtles with [typo = biomass and falsetwin? = true and twin = 2]
+      ask n-of ntwin turtles with [typo = biomass and falsetwin? = true and twin = 2] [
+        set color falsetwin-color 
+      ]
+    ]
+    
+  ] 
+end

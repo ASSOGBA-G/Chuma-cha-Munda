@@ -1,0 +1,355 @@
+to land-use
+  ;manage-forest
+  ;manage-shrubland
+  ;;expand-field-shrubland amount_buy
+  ;;expand-field-forest amount_buy
+  
+  
+  ask patches with [(pcolor = rgb 0 255 0 and cultiv != "yes")][
+   set page page + 1 
+  ]
+  
+  ask patches with [(pcolor = 64 and cultiv != "yes")][
+    set page page + 1 
+  ]
+  
+  let shrub_restoration 5
+  let forest_restoration 10
+  
+  ;;shrubland restoration
+  ifelse gov_shrubrest > 0 [
+    
+    let nrest floor ((gov_shrubrest / shrub_restoration) * 3);;3 patches = 1 field. number shrubland to restore based on money available
+    let torest count patches with [pcolor = rgb 0 255 0 and cultiv != "yes"];; to be potentially restored
+    
+    ifelse nrest > torest [
+     set nrest torest 
+    ][
+      ifelse torest > 0 [
+      set nrest int (nrest / torest)
+      ][
+       set nrest 0 
+      ]
+    ]
+    
+    ask n-of nrest patches with [pcolor = rgb 0 255 0 and cultiv != "yes"][
+      if page > 3 [
+        let pl samefield
+        ask patches with [samefield = pl][
+          set pcolor 64
+          set cultiv ""
+          ;set page 0
+          ;set samefield ""
+        ]
+      ]  
+    ]
+    
+    set gov_shrubrest gov_shrubrest - ((nrest * shrub_restoration) / 3)
+  ][
+    
+    ask patches with [pcolor = rgb 0 255 0 and cultiv != "yes"][
+      if page > 5 [
+        let pl samefield
+        ask patches with [samefield = pl][
+          set pcolor 64
+          set cultiv ""
+          ;set page 0
+          ;set samefield ""
+        ]
+      ]  
+    ]
+    
+  ]
+  
+  
+  if gov_forestrest > 0 [
+    
+    let nrest floor ((gov_forestrest / forest_restoration) * 3);;3 patches = 1 field. number forestland to restore based on money available
+    let torest count patches with [pcolor = 64 and cultiv != "yes"];; to be potentially restored
+    
+    ifelse nrest > torest [
+      set nrest torest 
+    ][
+      ifelse torest > 0 [
+      set nrest int (nrest / torest)
+      ][
+       set nrest 0 
+      ]
+    ]
+    
+    ask n-of nrest patches with [pcolor = 64 and cultiv != "yes"][
+      if page > 5 [
+        let pl samefield 
+        ask patches with [samefield = pl][
+          set pcolor 54
+          set cultiv ""
+          ;set samefield ""
+          sprout 1 [
+            set shape "tree" 
+            set size .5
+            set color rgb 0 220 0
+          ]
+        ]
+      ]
+    ]
+    
+    set gov_forestrest gov_forestrest - ((nrest * forest_restoration) / 3)
+  ]
+  
+  
+  ask patches with [pcolor = rgb 0 255 0 and cultiv = "yes"][
+   set page 0 
+  ]
+  
+  ask turtles with [shape = "tree"][
+    if [pcolor] of patch-here != 54 [
+      die
+    ]
+  ]
+  ;;check fields numbers and labels
+  ;let agplot patches with [pcolor = rgb 0 255 0 and cultiv = "yes"]
+  ;ask agplot [
+  ;  let pl plabel
+  ;  if count agplot with [plabel = pl] > 3 [
+  ;    let corplot agplot with [plabel = pl]
+  ;    let owner item 0[substring plabel 0 1] of one-of corplot
+  ;    let maxid max [read-from-string substring plabel 2 3] of agplot with [substring plabel 0 1 = owner]
+  ;    let minid min [read-from-string substring plabel 2 3] of agplot with [substring plabel 0 1 = owner]
+  ;    
+  ;    let cn (count agplot with [plabel = pl] / 3) - 1
+  ;    let i 1
+  ;    repeat cn [
+  ;      ask one-of corplot with [(read-from-string substring plabel 2 3) <= maxid][ 
+  ;        let sf samefield
+  ;        let pl2 plabel
+  ;        set plabel (word owner "-" (maxid + i))
+  ;        ask patches with [samefield = sf and plabel = pl2][
+  ;          set plabel (word owner "-" (maxid + i)) 
+  ;        ]
+  ;      ]
+  ;      set i i + 1
+  ;    ]
+  ;    
+  ;  ] 
+  ;]
+end
+
+to manage-forest
+  
+end
+
+to manage-shrubland
+  
+end
+
+to expand-field-shrubland [how_much]
+  ;;
+  
+  let buy_how_muchs how_much
+  
+  let idplays idplay
+  
+  let ferme item 0[farm] of farmers with [player = idplays]
+  
+  let shrubland patches with [pcolor = 64]
+  
+  let myplot patches with [cultiv = "yes"]
+  
+  set myplot myplot with [(substring plabel 0 1) = ferme] 
+  
+  let startpos 0
+  
+  ifelse any? myplot[
+    set startpos max [read-from-string (substring plabel 2 3)] of myplot
+  ][
+    set startpos 1 
+  ]
+  
+  let income item 0[onfarm_inc + offfarm_inc] of farmers with [player = idplays]
+  
+  let i 0
+  
+  let j 0
+  
+  let pcoordx [[2 3 4][5 6 7][7][7] [4 5 6]]
+  
+  let pcoordy [[-8] [-8] [-7 -6 -5][-4 -3 -2] [-4]]
+  
+  if buy_how_muchs <= (floor count shrubland / 3) [
+    
+    while [i < buy_how_muchs] [
+      ;let x random-float -1000000
+      ifelse j < length pcoordx [
+        set i i + (1 / 3) * count patches with [member? pxcor item j pcoordx and member? pycor item j pcoordy and cultiv != "yes"]
+        ask patches with [member? pxcor item j pcoordx and member? pycor item j pcoordy and cultiv != "yes"] [
+          set cultiv "yes"
+          set plabel (word ferme "-" (startpos + i))
+          set pcolor rgb 0 255 0
+          ;if samefield = 0 [
+          ;  set samefield x
+          ;]
+          ask turtles-here with [shape = "box"][die]
+        ]
+      ][
+        set i i + 1
+        if any? patches with [pcolor = 64][
+          ask one-of patches with [pcolor = 64][
+            let sm samefield
+            ask patches with [samefield = sm] [
+              set cultiv "yes"
+              set plabel (word ferme "-" (startpos + i))
+              set pcolor rgb 0 255 0
+              ask turtles-here with [shape = "box"][die]
+            ] 
+          ]
+        ]
+      ]
+      set j j + 1
+    ]
+  ]
+  livupdate idplays
+end
+
+to expand-field-forest [how_much]
+  ;;
+  
+  let buy_how_muchs how_much
+  
+  let idplays idplay
+  
+  let ferme item 0[farm] of farmers with [player = idplays]
+  
+  let forestland patches with [pcolor = 54]
+  
+  let myplot patches with [cultiv = "yes"]
+  
+  set myplot myplot with [(substring plabel 0 1) = ferme]
+  
+  let startpos 0
+  
+  ifelse any? myplot[
+    set startpos max [read-from-string (substring plabel 2 3)] of myplot
+  ][
+    set startpos 1 
+  ]
+  
+  let income item 0[onfarm_inc + offfarm_inc] of farmers with [player = idplays]
+  
+  let i 0
+  
+  let j 0
+  
+  let pcoordx [[4 5 6][4 5 6][4 5 6]]
+  
+  let pcoordy [[-5] [-6] [-7]]
+  
+  if buy_how_muchs <= (floor count forestland / 3) [
+    
+    while [i < buy_how_muchs] [
+      ;let x random-float -1000000
+      ifelse j < length pcoordx [
+        set i i + (1 / 3) * count patches with [member? pxcor item j pcoordx and member? pycor item j pcoordy and cultiv != "yes"]
+        ask patches with [member? pxcor item j pcoordx and member? pycor item j pcoordy and cultiv != "yes"] [
+          set cultiv "yes"
+          set plabel (word ferme "-" (startpos + i))
+          set pcolor rgb 0 255 0
+          ;if samefield = 0 [
+          ;  set samefield x
+          ;]
+          ask turtles-here with [shape = "tree"][die]
+        ]
+      ][
+        set i i + 1
+        if any? patches with [pcolor = 64][
+          ask one-of patches with [pcolor = 64][
+            let sm samefield
+            ask patches with [samefield = sm] [
+              set cultiv "yes"
+              set plabel (word ferme "-" (startpos + i))
+              set pcolor rgb 0 255 0
+              ask turtles-here with [shape = "tree"][die]
+            ] 
+          ]
+        ]
+      ]
+      set j j + 1
+    ]
+  ]
+  
+  livupdate idplays
+end
+
+to calcBiodiversity
+  set biodiversity count patches with [pcolor = rgb 0 255 0] + 2 * count patches with [pcolor = 64] + 5 * count patches with [pcolor = 54]
+end
+
+to subsidy
+  let subsidies one-of (range 0 3);;max 02 subisidies. based on observation less than 50% get subisidies from government
+  ;;random distribution of subisidies if number of subsidies < number of players
+  ask n-of subsidies farmers [
+    set onfarm_inc onfarm_inc + 1 
+    let play player
+    ask joueurs with [idplay = play][
+      hubnet-send pseudo "warning" "You got subsidies!" 
+    ]
+  ]
+end
+
+to govmanagement
+  
+  ;;choose strategy
+  if month = "December" and auto-play?[
+    choose-strategy "government"
+    ;;
+    ask government [
+      ;;microfinance update if zero or close
+      ;if gov_microfinance < 1 [
+      ;  set gov_microfinance 10
+      ;  set microfinance 10
+      ;]
+      
+      ;;update microfinance rate for the current round
+      set micro_rate one-of (range 0 0.31 0.1);;0-30% interest rate
+      set rate micro_rate
+      
+      ;;update loanterm for to be used for the current round
+      set gov_loanterm one-of (range 1 4 1);;1-3 years to pay back. average loanterm and rate are used to payback. see market_buy in smart_market.nls
+      
+      ;;land price
+      set land_price one-of (range 0 11 1);;0-10 units of money. price for fields. A factor is added to other land use: forest > shrub. see smart_market.nls
+      
+      ;;off farm opportunities
+      set gov_employment int one-of (range 0 (1 + (gov_microfinance / 2)) 1);; 2 units of money = 1 off farm job
+      
+      ;;defien new strategy
+      if newstrategy? [
+        set microfinance gov_microfinance
+        ifelse random 100 > 50 [
+          set shrubrest one-of (range 0 (microfinance + 1) 1)
+          set gov_shrubrest shrubrest
+          set microfinance microfinance - shrubrest
+          set gov_microfinance microfinance
+        ][
+          set forestrest one-of (range 0 (microfinance + 1) 1)
+          set gov_forestrest forestrest
+          set microfinance microfinance - forestrest
+          set gov_microfinance microfinance
+        ]
+        
+      ]
+      set mystrategy (list microfinance rate gov_employment shrubrest forestrest activevote_field activevote_shrub activevote_forest land_price)
+    ]
+  ]
+  
+  ;;update microfinance variable of agent government
+  if auto-play? [
+   ask government [
+      if gov_microfinance < 0 [set gov_microfinance 0];;can be slightly negative
+      if gov_microfinance > 100 [set gov_microfinance 0];;if too much money from the geovernment agent, farmers agents can borrow more and there can too many turtles in the simulations, which slows everything down
+     set microfinance gov_microfinance
+    ] 
+  ]
+  
+  ;evaluate-strategy "government"
+  
+end
